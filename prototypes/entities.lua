@@ -105,7 +105,7 @@ data:extend(
 			icon = "__BlackMarket__/graphics/black-market-energy.png",
 			icon_size = 128,
 			enabled = true,
-			prerequisites = { "black-market-item", "electric-energy-accumulators-1" },
+			prerequisites = { "black-market-item", "electric-energy-accumulators" },
 			unit = {
 				count = 150,
 				ingredients = {

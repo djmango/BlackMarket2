@@ -1,7 +1,7 @@
 [b][size=150]Infos[/size][/b]
 [list]
 [*]Type: Mod
-[*]Name: Black Market 
+[*]Name: Black Market  2
 [*]Description: Sell and buy items on the universal black market using trading chests, choosing the frequency of exchanges and related fees. You can now sell your overproduction and buy items that you don't want to craft by yourself. You can also use these chests as a paying shipment system.
 [*]Tested-With-Factorio-Version: 0.13.17
 [*]Locale: english
@@ -51,5 +51,5 @@ Todo :
 - propose a list of contracts to realize : a production goal in a limited time, with a money bonus at the end. Give a better bonus if the deliver time is less than expected.
 [attachment=0]screen2.jpg[/attachment][/spoiler]
 [b][size=150]Download[/size][/b]
-For Factorio 0.13.X :
+For Factorio 0.17.X :
 [color=#00BF80]Please use the portal for downloads (see link above or use ingame mod install/update).[/color]

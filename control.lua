@@ -1,5 +1,5 @@
 -- debug_status = 2
-debug_mod_name = "BlackMarket"
+debug_mod_name = "BlackMarket2"
 debug_file = debug_mod_name .. "-debug.txt"
 prices_file = debug_mod_name .. "-prices.csv"
 specials_file = debug_mod_name .. "-specials.txt"

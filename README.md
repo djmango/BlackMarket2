@@ -15,7 +15,7 @@ Sell and buy items/fluids/energy on the universal black market using trading che
 
 ### Contributors on GitHub
 * [Contributors graph](https://github.com/djmango/BlackMarket2/graphs/contributors)
-* [@totobeast](https://github.com/totobeast/)
+* [@totobest](https://github.com/totobest/)
 * [@BinbinHfr](https://mods.factorio.com/user/binbinhfr)
 
 ### Third party libraries

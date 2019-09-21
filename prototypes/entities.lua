@@ -7,7 +7,7 @@ data:extend(
 		{
 			type = "item-group",
 			name = "black-market-group",
-			icon = "__BlackMarket__/graphics/black-market-group.png",
+			icon = "__BlackMarket2__/graphics/black-market-group.png",
 			icon_size = 32,
 			inventory_order = "n",
 			order = "n"
@@ -40,7 +40,7 @@ data:extend(
 		{
 			type = "item",
 			name = "ucoin",
-			icon = "__BlackMarket__/graphics/ucoin.png",
+			icon = "__BlackMarket2__/graphics/ucoin.png",
 			icon_size = 32,
 			subgroup = "black-market-general",
 			order = "y",
@@ -50,7 +50,7 @@ data:extend(
 		{
 			type = "technology",
 			name = "black-market-item",
-			icon = "__BlackMarket__/graphics/black-market-item.png",
+			icon = "__BlackMarket2__/graphics/black-market-item.png",
 			icon_size = 128,
 			enabled = true,
 			unit = {
@@ -73,7 +73,7 @@ data:extend(
 		{
 			type = "technology",
 			name = "black-market-fluid",
-			icon = "__BlackMarket__/graphics/black-market-fluid.png",
+			icon = "__BlackMarket2__/graphics/black-market-fluid.png",
 			icon_size = 128,
 			enabled = true,
 			prerequisites = { "black-market-item", "fluid-handling" },
@@ -102,7 +102,7 @@ data:extend(
 		{
 			type = "technology",
 			name = "black-market-energy",
-			icon = "__BlackMarket__/graphics/black-market-energy.png",
+			icon = "__BlackMarket2__/graphics/black-market-energy.png",
 			icon_size = 128,
 			enabled = true,
 			prerequisites = { "black-market-item", "electric-energy-accumulators" },
@@ -131,7 +131,7 @@ data:extend(
 		{
 			type = "technology",
 			name = "black-market-mk-2",
-			icon = "__BlackMarket__/graphics/black-market-mk.png",
+			icon = "__BlackMarket2__/graphics/black-market-mk.png",
 			icon_size = 128,
 			enabled = true,
 			upgrade = true,
@@ -154,7 +154,7 @@ data:extend(
 		{
 			type = "technology",
 			name = "black-market-mk-3",
-			icon = "__BlackMarket__/graphics/black-market-mk.png",
+			icon = "__BlackMarket2__/graphics/black-market-mk.png",
 			icon_size = 128,
 			enabled = true,
 			upgrade = true,
@@ -177,7 +177,7 @@ data:extend(
 		{
 			type = "technology",
 			name = "black-market-mk-4",
-			icon = "__BlackMarket__/graphics/black-market-mk.png",
+			icon = "__BlackMarket2__/graphics/black-market-mk.png",
 			icon_size = 128,
 			enabled = true,
 			upgrade = true,
@@ -234,7 +234,7 @@ local function add_chests(level)
 	chest_sell.inventory_size = inventory_size
 	chest_sell.picture = 
 		{
-			filename = "__BlackMarket__/graphics/trading-chest-sell.png",
+			filename = "__BlackMarket2__/graphics/trading-chest-sell.png",
 			priority = "extra-high",
 			width = 48,
 			height = 34,
@@ -249,7 +249,7 @@ local function add_chests(level)
 			{
 				type = "item",
 				name = name_sell,
-				icon = "__BlackMarket__/graphics/trading-chest-sell-icon.png",
+				icon = "__BlackMarket2__/graphics/trading-chest-sell-icon.png",
 				icon_size = 32,
 				subgroup = "black-market-chests",
 				order = level .. "a",
@@ -275,7 +275,7 @@ local function add_chests(level)
 	chest_buy.inventory_size = inventory_size
 	chest_buy.picture = 
 		{
-			filename = "__BlackMarket__/graphics/trading-chest-buy.png",
+			filename = "__BlackMarket2__/graphics/trading-chest-buy.png",
 			priority = "extra-high",
 			width = 48,
 			height = 34,
@@ -289,7 +289,7 @@ local function add_chests(level)
 			{
 				type = "item",
 				name = name_buy,
-				icon = "__BlackMarket__/graphics/trading-chest-buy-icon.png",
+				icon = "__BlackMarket2__/graphics/trading-chest-buy-icon.png",
 				icon_size = 32,
 				subgroup = "black-market-chests",
 				order = level .. "b",
@@ -351,7 +351,7 @@ local function add_tanks(level)
 	if level == 4 then tank_max = 40000 end
 	--------------------------------------------------------------------------------------
 	local tank_sell = dupli_proto( "storage-tank", "storage-tank", name_sell )
-	tank_sell.pictures.picture.sheets[1].filename = "__BlackMarket__/graphics/trading-tank-sell.png"
+	tank_sell.pictures.picture.sheets[1].filename = "__BlackMarket2__/graphics/trading-tank-sell.png"
 	tank_sell.fluid_box.base_area = tank_max/10
 
 	data:extend(
@@ -361,7 +361,7 @@ local function add_tanks(level)
 			{
 				type = "item",
 				name = name_sell,
-				icon = "__BlackMarket__/graphics/trading-tank-sell-icon.png",
+				icon = "__BlackMarket2__/graphics/trading-tank-sell-icon.png",
 				icon_size = 32,
 				subgroup = "black-market-tanks",
 				order = level .. "a",
@@ -385,7 +385,7 @@ local function add_tanks(level)
 
 	--------------------------------------------------------------------------------------
 	local tank_buy = dupli_proto( "storage-tank", "storage-tank", name_buy )
-	tank_buy.pictures.picture.sheets[1].filename = "__BlackMarket__/graphics/trading-tank-buy.png"
+	tank_buy.pictures.picture.sheets[1].filename = "__BlackMarket2__/graphics/trading-tank-buy.png"
 	tank_buy.fluid_box.base_area = tank_max/10 
 
 	data:extend(
@@ -395,7 +395,7 @@ local function add_tanks(level)
 			{
 				type = "item",
 				name = name_buy,
-				icon = "__BlackMarket__/graphics/trading-tank-buy-icon.png",
+				icon = "__BlackMarket2__/graphics/trading-tank-buy-icon.png",
 				icon_size = 32,
 				subgroup = "black-market-tanks",
 				order = level .. "b",
@@ -466,9 +466,9 @@ local function add_accus(level)
 	accu_sell.energy_source.buffer_capacity = accu_max .. "MJ"
 	accu_sell.energy_source.input_flow_limit = flow_limit .. "MW"
 	accu_sell.energy_source.output_flow_limit = "0MW"
-	accu_sell.picture.filename = "__BlackMarket__/graphics/trading-accumulator-sell.png"
-	accu_sell.charge_animation.filename = "__BlackMarket__/graphics/trading-accumulator-sell-charge.png"
-	accu_sell.discharge_animation.filename = "__BlackMarket__/graphics/trading-accumulator-sell-discharge.png"
+	accu_sell.picture.filename = "__BlackMarket2__/graphics/trading-accumulator-sell.png"
+	accu_sell.charge_animation.filename = "__BlackMarket2__/graphics/trading-accumulator-sell-charge.png"
+	accu_sell.discharge_animation.filename = "__BlackMarket2__/graphics/trading-accumulator-sell-discharge.png"
 
 	data:extend(
 		{
@@ -477,7 +477,7 @@ local function add_accus(level)
 			{
 				type = "item",
 				name = name_sell,
-				icon = "__BlackMarket__/graphics/trading-accumulator-sell-icon.png",
+				icon = "__BlackMarket2__/graphics/trading-accumulator-sell-icon.png",
 				icon_size = 32,
 				subgroup = "black-market-accumulators",
 				order = level .. "a",
@@ -504,9 +504,9 @@ local function add_accus(level)
 	accu_buy.energy_source.buffer_capacity = accu_max .. "MJ"
 	accu_buy.energy_source.input_flow_limit = "0MW"
 	accu_buy.energy_source.output_flow_limit = flow_limit .. "MW"
-	accu_buy.picture.filename = "__BlackMarket__/graphics/trading-accumulator-buy.png"
-	accu_buy.charge_animation.filename = "__BlackMarket__/graphics/trading-accumulator-buy-charge.png"
-	accu_buy.discharge_animation.filename = "__BlackMarket__/graphics/trading-accumulator-buy-discharge.png"
+	accu_buy.picture.filename = "__BlackMarket2__/graphics/trading-accumulator-buy.png"
+	accu_buy.charge_animation.filename = "__BlackMarket2__/graphics/trading-accumulator-buy-charge.png"
+	accu_buy.discharge_animation.filename = "__BlackMarket2__/graphics/trading-accumulator-buy-discharge.png"
 
 	data:extend(
 		{
@@ -515,7 +515,7 @@ local function add_accus(level)
 			{
 				type = "item",
 				name = name_buy,
-				icon = "__BlackMarket__/graphics/trading-accumulator-buy-icon.png",
+				icon = "__BlackMarket2__/graphics/trading-accumulator-buy-icon.png",
 				icon_size = 32,
 				subgroup = "black-market-accumulators",
 				order = level .. "b",

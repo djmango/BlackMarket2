@@ -9,7 +9,7 @@ Sell and buy items/fluids/energy on the universal black market using trading che
 
 ## Download
 * [Latest](https://github.com/djmango/BlackMarket2/archive/master.zip)
-* Factorio mod page coming soon
+* [Factorio Mod Page](https://mods.factorio.com/mod/BlackMarket2)
 
 ## Contributors
 
@@ -17,6 +17,7 @@ Sell and buy items/fluids/energy on the universal black market using trading che
 * [Contributors graph](https://github.com/djmango/BlackMarket2/graphs/contributors)
 * [@totobest](https://github.com/totobest/)
 * [@BinbinHfr](https://mods.factorio.com/user/binbinhfr)
+* see [CREDITS](https://github.com/djmango/BlackMarket2/blob/master/CREDITS.md) files
 
 ### Third party libraries
 * see [LIBRARIES](https://github.com/djmango/BlackMarket2/blob/master/LIBRARIES.md) files

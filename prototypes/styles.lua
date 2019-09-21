@@ -20,14 +20,14 @@ data:extend(
 		{
 			type = "sprite",
 			name = "sprite_main_blkmkt",
-			filename = "__BlackMarket__/graphics/but-main.png",
+			filename = "__BlackMarket2__/graphics/but-main.png",
 			width = 30,
 			height = 30,
 		},
 		{
 			type = "sprite",
 			name = "sprite_energy_blkmkt",
-			filename = "__BlackMarket__/graphics/energy.png",
+			filename = "__BlackMarket2__/graphics/energy.png",
 			width = 32,
 			height = 32,
 		},

@@ -27,7 +27,7 @@ Sell and buy items/fluids/energy on the universal black market using trading che
 
 ## Contact
 #### Developer/Maintainer
-* Homepage:
+* Homepage: [GitHub](https://github.com/djmango)
 * e-mail: skghori03@gmail.com
 
 [![Flattr this git repo](http://api.flattr.com/button/flattr-badge-large.png)](https://flattr.com/submit/auto?user_id=djmango&url=https://github.com/djmango/BlackMarket2&title=BlackMarket2&language=&tags=github&category=software) 

@@ -1,4 +1,4 @@
-# BlackMarket2
+# Black Market 2
 
 **BlackMarket 2** is a mod for [Factorio](https://factorio.com/) economics.
 

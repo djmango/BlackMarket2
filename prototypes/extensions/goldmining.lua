@@ -1,5 +1,5 @@
 require("utils")
-require("stdlib/utils/table")
+local table = require("stdlib/utils/table")
 
 if mods["GoldMining"] and data.raw.technology["gold-processing"] ~= nil then
 
@@ -32,5 +32,13 @@ if mods["GoldMining"] and data.raw.technology["gold-processing"] ~= nil then
 		type = "unlock-recipe",
 		recipe = "ucoin-from-gold-plate"
 	})
+		
+	
+	-- slighty update gold processing technologies to not waste stone
+	table.each(data.raw.recipe["gold-processing"].results, function(result)
+		if result.name == "stone" then
+			result.amount = 3
+		end
+	end)
 
 end

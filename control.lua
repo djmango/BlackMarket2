@@ -102,7 +102,7 @@ end
 local function update_bar( player )
 	local player_mem = global.player_mem[player.index]
 	
-	if player_mem.cursor_name == nil or global.prices_computed then
+	if player_mem.cursor_name == nil or global.prices_computed or not player_mem.but_blkmkt_credits.caption == nil then
 		local force_mem = global.force_mem[player.force.name]
 		player_mem.but_blkmkt_credits.caption = format_money(force_mem.credits)
 	else

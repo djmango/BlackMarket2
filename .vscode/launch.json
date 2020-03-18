@@ -1,0 +1,23 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "factoriomod",
+            "request": "launch",
+            "name": "Factorio Mod Debug Win",
+            "factorioPath": "C:\\Users\\modit\\Documents\\Factorio\\Factorio_0.18.13\\bin\\x64\\factorio.exe",
+            "configPath": "C:\\Users\\modit\\Documents\\Factorio\\Factorio_0.18.13\\config\\config.ini",
+            // "modsPath": "C:\\Users\\modit\\Documents\\Factorio\\mods"
+        },
+        {
+            "type": "factoriomod",
+            "request": "launch",
+            "name": "Factorio Mod Debug Manjaro",
+            "modsPath": "~/.factorio/mods",
+            "factorioPath": "/mnt/storage/steam/steamapps/common/Factorio/bin/x64/factorio"
+        }
+    ]
+}

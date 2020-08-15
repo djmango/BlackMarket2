@@ -7,17 +7,10 @@
         {
             "type": "factoriomod",
             "request": "launch",
-            "name": "Factorio Mod Debug Win",
-            "factorioPath": "C:\\Users\\modit\\Documents\\Factorio\\Factorio_0.18.13\\bin\\x64\\factorio.exe",
-            "configPath": "C:\\Users\\modit\\Documents\\Factorio\\Factorio_0.18.13\\config\\config.ini",
-            // "modsPath": "C:\\Users\\modit\\Documents\\Factorio\\mods"
-        },
-        {
-            "type": "factoriomod",
-            "request": "launch",
             "name": "Factorio Mod Debug Manjaro",
-            "modsPath": "~/.factorio/mods",
-            "factorioPath": "/mnt/storage/steam/steamapps/common/Factorio/bin/x64/factorio"
+            "modsPath": "/home/djmango/.factorio/mods",
+            "factorioPath": "/home/djmango/.local/share/Steam/steamapps/common/Factorio/bin/x64/factorio",
+            "configPath": "/home/djmango/.factorio/config/config.ini"
         }
     ]
 }

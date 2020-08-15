@@ -165,32 +165,6 @@ data:extend({
         order = "ch"
     },
     
-    -- Alien Artifacts
-    {
-        type = "int-setting",
-        name = "BM2-alien_artifact",
-        setting_type = "startup",
-        minimum_value = 0,
-        default_value = 1000,
-        order = "da"
-    },    
-    {
-        type = "int-setting",
-        name = "BM2-small_alien_artifact",
-        setting_type = "startup",
-        minimum_value = 0,
-        default_value = 119,
-        order = "db"
-    },
-    {
-        type = "int-setting",
-        name = "BM2-small_alien_artifact-colored",
-        setting_type = "startup",
-        minimum_value = 0,
-        default_value = 201,
-        order = "dc"
-    },
-    
     -- other prices
     
     {

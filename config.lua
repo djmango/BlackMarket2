@@ -23,20 +23,11 @@ special_prices = {
 	
 	["raw-wood"] = settings.startup["BM2-raw_wood"].value,
 	["raw-fish"] = settings.startup["BM2-raw_fish"].value,
-	["alien-artifact"] = settings.startup["BM2-alien_artifact"].value,
 	
 	["thermal-water"] = settings.startup["BM2-thermal_water"].value,
 	
 	["empty-canister"] = settings.startup["BM2-empty_canister"].value, -- from bob (but "empty-" is also prefix from omnibarrel exclusion...
 	["empty-barrel"] = settings.startup["BM2-empty_barrel"].value, -- from vanilla (but "empty-" is also prefix from omnibarrel exclusion...
-	
-	["small-alien-artifact"] = settings.startup["BM2-small_alien_artifact"].value,
-	["small-alien-artifact-red"] = settings.startup["BM2-small_alien_artifact-colored"].value,
-	["small-alien-artifact-orange"] = settings.startup["BM2-small_alien_artifact-colored"].value,
-	["small-alien-artifact-yellow"] = settings.startup["BM2-small_alien_artifact-colored"].value,
-	["small-alien-artifact-green"] = settings.startup["BM2-small_alien_artifact-colored"].value,
-	["small-alien-artifact-blue"] = settings.startup["BM2-small_alien_artifact-colored"].value,
-	["small-alien-artifact-purple"] = settings.startup["BM2-small_alien_artifact-colored"].value,
 	
 	-- ["gem-ore"] = resource_price"].value,
 	-- ["liquid-air"] = resource_price"].value,

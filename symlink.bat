@@ -1,1 +1,0 @@
-mklink /j "C:\Users\modit\Documents\Factorio\Factorio_0.18.13\mods\BlackMarket2_1.2.6" C:\Users\modit\github\BlackMarket2

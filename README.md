@@ -12,27 +12,21 @@ Sell and buy items/fluids/energy on the universal black market using trading che
 * [Factorio Mod Page](https://mods.factorio.com/mod/BlackMarket2)
 
 ## Contributors
-
-### Contributors on GitHub
 * [Contributors graph](https://github.com/djmango/BlackMarket2/graphs/contributors)
-* [@totobest](https://github.com/totobest/), original mod creator
-* [@BinbinHfr](https://mods.factorio.com/user/binbinhfr), previous mod maintainer
+* [@BinbinHfr](https://mods.factorio.com/user/binbinhfr), original mod creator
+* [@totobest](https://github.com/totobest/), previous mod maintainer
 * [@djmango](https://github.com/djmango/), current mod maintainer
-* see [CREDITS](https://github.com/djmango/BlackMarket2/blob/master/CREDITS.md) files
 
-### Third party libraries
-* see [LIBRARIES](https://github.com/djmango/BlackMarket2/blob/master/LIBRARIES.md) files
+## Third party libraries
+* [Core/Class : npo6ka from FNEI mod (MIT)](https://github.com/npo6ka/FNEI)
+* [Factorio-Stdlib: Afforess](https://github.com/Afforess/Factorio-Stdlib/blob/master/LICENSE)
 
 ## License 
 * see [LICENSE](https://github.com/djmango/BlackMarket2/blob/master/LICENSE) file
 
 ## Contact
-#### Developer/Maintainer
-* Homepage: [GitHub](https://github.com/djmango)
+* Homepage: [GitHub](https://github.com/djmango), [Modpage](https://mods.factorio.com/mod/BlackMarket2)
 * e-mail: skghori03@gmail.com
-
-## Todo:
-* Translate the new mod settings in [ru.cfg](https://github.com/djmango/BlackMarket2/blob/master/locale/ru.cfg) to Russian (I don't know Russian, feel free to submit a PR :)
 
 [![Flattr this git repo](http://api.flattr.com/button/flattr-badge-large.png)](https://flattr.com/submit/auto?user_id=djmango&url=https://github.com/djmango/BlackMarket2&title=BlackMarket2&language=&tags=github&category=software) 
 

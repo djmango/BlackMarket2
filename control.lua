@@ -1040,9 +1040,16 @@ local function update_objects_prices_end()
 	end
 	
 	global.old_prices = nil
-	
 	global.ingredients_to_parse = nil
 	global.prices_computed = false
+end
+
+local function multiply_prices()
+	if not (settings.startup["BM2-price_multiplyer"] == nil or settings.startup["BM2-price_multiplyer"].value == 1) then
+		for name_object, price in pairs(global.prices) do
+			price.current = price.current * settings.startup["BM2-price_multiplyer"].value
+		end
+	end
 end
 
 --------------------------------------------------------------------------------------
@@ -2426,7 +2433,7 @@ local function on_tick(event)
 		-- manage prices list build
 
 		if global.prices_computed then
-			message_all({"blkmkt-gui-rescan-progr",global.prices_loop})
+			-- message_all({"blkmkt-gui-rescan-progr",global.prices_loop})
 			
 			if global.prices_loop ==  0 then
 				close_guis()
@@ -2442,7 +2449,9 @@ local function on_tick(event)
 				update_dynamic_prices()
 
 				close_guis()
-				
+
+				multiply_prices()
+
 				message_all({"blkmkt-gui-rescan-done"})
 			end
 		end

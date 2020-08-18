@@ -1,11 +1,11 @@
 ---------------------------------------------------------------------------------------------------
 Version: 1.2.8
-Date: ????
+Date: 2020-08-18
   Changes:
+    - Added changelog
 ---------------------------------------------------------------------------------------------------
 Version: 1.2.7
-Date: 2020-08-18
-  Notes:
-    - Added changelog
+Date: 2020-08-17
+  Changes:
     - Ensured the mod runs in Factorio 1.0
     - Fixed small bugs, see milestone 1.2.7 https://github.com/djmango/BlackMarket2/milestone/1

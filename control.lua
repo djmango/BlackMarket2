@@ -1,4 +1,4 @@
--- debug_status = 2
+debug_status = 1
 debug_mod_name = "BlackMarket2"
 debug_file = debug_mod_name .. "-debug.txt"
 prices_file = debug_mod_name .. "-prices.csv"
@@ -6,6 +6,7 @@ specials_file = debug_mod_name .. "-specials.txt"
 require("utils")
 require("config")
 require("mod-gui")
+local table = require('__flib__.table')
 
 local trader_type = { item=1, fluid=2, energy=3, "item", "fluid", "energy" }
 local energy_name = "market-energy" -- name of fake energy item
@@ -16,8 +17,6 @@ local trader_signals =
 		auto_sell = {type="virtual",name="signal-market-auto-sell"},
 		auto_buy = {type="virtual",name="signal-market-auto-buy"},
 	}
-
-if debug_status == 2 then debug_print2 = debug_active else debug_print2 = function() end end
 
 --------------------------------------------------------------------------------------
 function format_money( n )
@@ -683,8 +682,8 @@ local function update_objects_prices_start()
 	
 	-- debug_print("RAZ")
 	
-	debug_print2("--------------------------------------------------------------------------------------")
-	debug_print2( "PRICES PASS 0" )
+	debug_print("--------------------------------------------------------------------------------------")
+	debug_print( "PRICES PASS 0" )
 	
 	global.old_prices = global.prices or {} -- to memorize old prices, and restore dynamics later
 	
@@ -793,17 +792,16 @@ local function update_objects_prices_start()
 	
 	-- give price to free/new resources/unknown
 
-	debug_print2("--------------------------------------------------------------------------------------")
-	debug_print2( "set free/newres/unknown")
+	-- debug_print( "set free/newres/unknown")
 
 	for name, object in pairs(game.item_prototypes) do
 		if global.prices[name] == nil then
 			if new_resources[name] == true then
-				debug_print2( "set ", name, " resource_price_new")
+				-- debug_print( "set ", name, " resource_price_new")
 				global.prices[name] = {overall=resource_price_new, tech=0, ingrs=0, energy=0}
 				ingredients_to_parse[name] = true
 			elseif free_products[name] == true then
-				debug_print2( "set ", name, " free_price")
+				-- debug_print( "set ", name, " free_price")
 				global.prices[name] = {overall=free_price, tech=0, ingrs=0, energy=0}
 				ingredients_to_parse[name] = true
 			end
@@ -813,11 +811,11 @@ local function update_objects_prices_start()
 	for name, object in pairs(game.fluid_prototypes) do
 		if global.prices[name] == nil then
 			if new_resources[name] == true then
-				debug_print2( "set ", name, " resource_price_new")
+				-- debug_print( "set ", name, " resource_price_new")
 				global.prices[name] = {overall=resource_price_new, tech=0, ingrs=0, energy=0}
 				ingredients_to_parse[name] = true
 			elseif free_products[name] == true then
-				debug_print2( "set ", name, " free_price")
+				-- debug_print( "set ", name, " free_price")
 				global.prices[name] = {overall=free_price, tech=0, ingrs=0, energy=0}
 				ingredients_to_parse[name] = true
 			end
@@ -871,14 +869,14 @@ local function update_products_recipe(recipe)
 		elseif prod.amount_min and prod.amount_max and prod.probability then
 			nb_prods_tot = nb_prods_tot + (prod.amount_min + prod.amount_max) /2 * prod.probability
 		else
-			debug_print2( "     NO amount : ", recipe.name, " ", prod.name )
+			-- debug_print( "     NO amount : ", recipe.name, " ", prod.name )
 		end
 	end
 		
 	-- display costs on products
 	overall_price = (tech_price + ingrs_price + energy_price) * (1+commercial_margin)
 	
-	debug_print2("     OK nb prods = ", #recipe.products)
+	-- debug_print("     OK nb prods = ", #recipe.products)
 		
 	for _, prod in pairs(recipe.products) do
 		local price = global.prices[prod.name]
@@ -900,11 +898,11 @@ local function update_products_recipe(recipe)
 					energy = math.floor(energy_price / nb_prods_tot+0.5)
 				}
 			end
-			debug_print2("     PR price ", prod.name, " = ", price)
+			-- debug_print("     PR price ", prod.name, " = ", price)
 			global.recipes_used[prod.name] = recipe.name
 			new_ingrs[prod.name] = true -- mark this product as a new potential ingredient of further recipes
 		else
-			debug_print2("     -- exist ", prod.name, " = ", price.overall)
+			-- debug_print("     -- exist ", prod.name, " = ", price.overall)
 		end
 	end
 
@@ -920,24 +918,22 @@ local function update_objects_prices_loop()
 	
 	new_price = false
 	global.prices_loop = global.prices_loop + 1
-	
-	debug_print2("--------------------------------------------------------------------------------------")
-	debug_print2( "PRICES PASS ", global.prices_loop )
+
+	if debug_status == 1 then game.print("PRICES PASS " .. global.prices_loop) end
 	
 	local recipes = game.forces.player.recipes
 	
 	if true then
 		-- try to solve direct recipes (1 product with the recipe of the same name)
-		for name_item, item in pairs(game.item_prototypes) do
-			local recipe = recipes[name_item]
-			if global.recipes_parsed[name_item] == nil and recipe ~= nil then
-				debug_print2( "item    ", name_item, " -> recipe ", name_item )
-				
+		table.for_each(game.item_prototypes, function(item)
+			local recipe = recipes[item.name]
+
+			if global.recipes_parsed[item.name] == nil and recipe ~= nil then
 				ingredients_to_parse3 = update_products_recipe(recipe)
 				
 				if ingredients_to_parse3 == nil then
 					-- ingredient still not solved, rescan in next pass
-					ingredients_to_parse2[name_item] = true 
+					ingredients_to_parse2[item.name] = true 
 				else
 					-- ingredient solved, recipe products became new ingredients for next pass
 					new_price = true
@@ -946,26 +942,14 @@ local function update_objects_prices_loop()
 					end
 				end
 			end
-		end
+		end)
 	end
 	
 	for name_recipe, recipe in pairs(recipes) do
-		if global.recipes_parsed[name_recipe] == nil 
-		-- if not recipe.hidden and global.recipes_parsed[name_recipe] == nil
-			-- and not(
-				-- string.sub(name_recipe,1,3) == "rf-" -- reverse factory mod
-				-- or string.sub(name_recipe,1,5) == "repl-" -- dark matter mod
-				-- or string.sub(name_recipe,1,11) == "dry411srev-" -- z recycle mod
-				-- or string.sub(name_recipe,1,4) == "box-" -- boxing mod
-				-- or string.sub(name_recipe,1,6) == "unbox-" -- boxing mod
-				-- or string.sub(name_recipe,1,6) == "boxed-" -- boxing mod
-				-- or string.sub(name_recipe,1,5) == "fill-" -- omnibarrel mod
-				-- or string.sub(name_recipe,1,6) == "empty-" -- omnibarrel mod
-			-- )
-		then
+		if global.recipes_parsed[name_recipe] == nil then
 			for _, ingr in pairs(recipe.ingredients) do
 				if global.ingredients_to_parse[ingr.name] == true then
-					debug_print2( "ingr    ", ingr.name, " -> recipe ", name_recipe )
+					-- debug_print( "ingr    ", ingr.name, " -> recipe ", name_recipe )
 
 					ingredients_to_parse3 = update_products_recipe(recipe)
 					
@@ -991,8 +975,7 @@ end
 
 --------------------------------------------------------------------------------------
 local function update_objects_prices_end()
-	debug_print2("--------------------------------------------------------------------------------------")
-	debug_print2( "PRICES PASS final" )
+	debug_print( "PRICES PASS final" )
 	
 	debug_print( "nb loops = ", global.prices_loop)
 
@@ -1004,7 +987,7 @@ local function update_objects_prices_end()
 		-- global.unknowns[name_ingr] = true
 	-- end
 	
-	-- mark all other left unpriced items and fluids as unknown for export, 
+	-- mark all other left unpriced items and fluids as unknown for export,
 	-- but still not in price list to avoid display
 
 	for name_object, object in pairs(game.item_prototypes) do
@@ -1045,10 +1028,8 @@ local function update_objects_prices_end()
 end
 
 local function multiply_prices()
-	if not (settings.startup["BM2-price_multiplyer"] == nil or settings.startup["BM2-price_multiplyer"].value == 1) then
-		for name_object, price in pairs(global.prices) do
-			price.current = price.current * settings.startup["BM2-price_multiplyer"].value
-		end
+	if not (settings.startup["BM2-price_multiplyer"] == nil or settings.startup["BM2-price_multiplyer"].value == 1) then -- no point of multiplying prices if its just by 1 or not configured at all
+		table.for_each(global.prices, function(price) price.current = price.current * settings.startup["BM2-price_multiplyer"].value end)
 	end
 end
 
@@ -1822,7 +1803,7 @@ end
 --------------------------------------------------------------------------------------
 local function clean_orders_and_transactions()
 	for name, force in pairs(game.forces) do
-		debug_print2("name=" .. name)
+		debug_print("name=" .. name)
 		
 		local force_mem = global.force_mem[name]
 		
@@ -1983,10 +1964,6 @@ end
 --------------------------------------------------------------------------------------
 local function on_init() 
 	-- called once, the first time the mod is loaded on a game (new or existing game)
-	debug_print( "RAZ" )
-	debug_print( "CLEAR" )
-	debug_print( "on_init" )
-	
 	init_globals()
 	init_forces()
 	init_players()
@@ -2004,160 +1981,6 @@ local function on_configuration_changed(data)
 		init_players()
 
 		local changes = data.mod_changes[debug_mod_name]
-		if changes ~= nil then
-			debug_print( "RAZ" )
-			debug_print( "CLEAR" )
-			debug_print( "update mod: ", debug_mod_name, " ", tostring(changes.old_version), " to ", tostring(changes.new_version) )
-		
-			if changes.old_version and older_version(changes.old_version, "1.0.14") then
-				for _,force in pairs(game.forces) do
-					force.reset_recipes()
-					force.reset_technologies()
-				end
-				
-				if global.prices then
-					debug_print( "global.prices" )
-					for name_object, price in pairs(global.prices) do
-						price.dynamic = 1
-						price.dynamic_prev = 1
-						price.evolution = 0
-					end
-				end
-			end
-			
-			if changes.old_version and older_version(changes.old_version, "1.0.19") then
-				if global.prices then
-					debug_print( "global.prices" )
-					for name_object, price in pairs(global.prices) do
-						price.previous = price.current or price.overall
-						price.dynamic_prev = nil
-					end
-				end
-			end
-			
-			
-			if changes.old_version and older_version(changes.old_version, "1.0.14") then
-				for _,force in pairs(game.forces) do
-					local force_mem = global.force_mem[force.name]
-					
-					for _, chest in pairs(force_mem.chests_sell) do
-						chest.type = trader_type.item
-						table.insert(force_mem.traders_sell,chest)
-					end
-					force_mem.chests_sell = nil
-					
-					for _, chest in pairs(force_mem.chests_buy) do
-						chest.type = trader_type.item
-						table.insert(force_mem.traders_buy,chest)
-					end
-					force_mem.chests_buy = nil
-					
-					force_mem.transactions = {}
-				end
-				
-				for _, player in pairs(game.players) do
-					if mod_gui.get_frame_flow(player).frm_blkmkt_chest then
-						local player_mem = global.player_mem[player.index]
-						mod_gui.get_frame_flow(player).frm_blkmkt_chest.destroy() -- destroy old windows
-						player_mem.frm_blkmkt_chest = nil
-					end
-				end
-			end
-			
-			if changes.old_version and older_version(changes.old_version, "1.0.19") then
-				for _,force in pairs(game.forces) do
-					local force_mem = global.force_mem[force.name]
-					
-					for _, trader in pairs(force_mem.traders_sell) do
-						trader.price = nil
-					end
-					
-					for _, trader in pairs(force_mem.traders_buy) do
-						trader.price = nil
-					end
-
-					force_mem.transactions = {}
-				end
-			end
-			
-			if changes.old_version and older_version(changes.old_version, "1.0.23") then
-				message_all( "Black Market : you can now copy-paste trader chests settings." )
-				for _,force in pairs(game.forces) do
-					local force_mem = global.force_mem[force.name]
-					
-					for _, trader in pairs(force_mem.traders_sell) do
-						trader.daylight = false
-					end
-					
-					for _, trader in pairs(force_mem.traders_buy) do
-						trader.daylight = false
-					end
-				end
-			end
-			
-			if changes.old_version and older_version(changes.old_version, "1.0.24") then	
-				message_all( "Black Market : new signal features to command automatic modes." )
-			end
-			
-			if changes.old_version and older_version(changes.old_version, "1.0.25") then
-				for _,force in pairs(game.forces) do
-					force.reset_recipes()
-					force.reset_technologies()
-				end
-			end
-			
-			if changes.old_version and older_version(changes.old_version, "1.0.26") then
-				message_all( "Black Market : new traders tiers MK2, MK3, MK4." )
-				for _,force in pairs(game.forces) do
-					force.reset_recipes()
-					force.reset_technologies()
-					
-					local force_mem = global.force_mem[force.name]
-					
-					for _, trader in pairs(force_mem.traders_sell) do
-						trader.level = 1
-						trader.tank_max = 2500 
-						trader.accu_max = 10 
-					end
-					
-					for _, trader in pairs(force_mem.traders_buy) do
-						trader.level = 1
-						trader.tank_max = 2500 
-						trader.accu_max = 10 
-					end
-				end
-			end
-			
-			if changes.old_version and older_version(changes.old_version, "1.0.27") then
-				message_all( "Black Market : now you can also copy-paste tanks and accus settings." )
-			end
-			
-			if changes.old_version and older_version(changes.old_version, "1.0.33") then
-				message_all( "Black Market : updating tanks sizes." )
-				for _,force in pairs(game.forces) do
-					local force_mem = global.force_mem[force.name]
-					
-					for _, trader in pairs(force_mem.traders_sell) do
-						if trader.level ~= nil then
-							if trader.level == 1 then trader.tank_max = 25000 end
-							if trader.level == 2 then trader.tank_max = 100000 end
-							if trader.level == 3 then trader.tank_max = 200000 end
-							if trader.level == 4 then trader.tank_max = 400000 end		
-						end
-					end
-					
-					for _, trader in pairs(force_mem.traders_buy) do
-						if trader.level ~= nil then
-							if trader.level == 1 then trader.tank_max = 25000 end
-							if trader.level == 2 then trader.tank_max = 100000 end
-							if trader.level == 3 then trader.tank_max = 200000 end
-							if trader.level == 4 then trader.tank_max = 400000 end		
-						end
-					end
-				end
-			end
-			
-		end
 		
 		-- global.ask_rescan = true
 		close_guis()
@@ -2182,7 +2005,7 @@ script.on_configuration_changed(on_configuration_changed)
 local function on_force_created(event)
 	-- called at player creation
 	local force = event.force
-	debug_print( "force created ", force.name )
+	-- debug_print( "force created ", force.name )
 	
 	init_force(force)
 end
@@ -2219,15 +2042,15 @@ end
 script.on_event(defines.events.on_forces_merging, on_forces_merging )
 
 --------------------------------------------------------------------------------------
-local function on_player_created(event)
-	-- called at player creation
+local function on_cutscene_cancelled(event)
+	-- called after player creation, when we can access the inventory
 	local player = game.players[event.player_index]
 	debug_print( "player created ", player.name )
 	
 	init_player(player)
 	
 	if debug_status == 1 then
-		local inv = player.get_inventory(defines.inventory.player_quickbar)
+		local inv = player.get_inventory(defines.inventory.character_main)
 		inv.insert({name="fast-inserter", count=50})
 		inv.insert({name="trader-chst-sel", count=10})
 		inv.insert({name="trader-chst-buy", count=10})
@@ -2236,10 +2059,12 @@ local function on_player_created(event)
 		inv.insert({name="trader-accu-sel", count=10})
 		inv.insert({name="trader-accu-buy", count=10})
 		inv.insert({name="ucoin", count=100000})
+		debug_print("created debug inv")
+		end
 	end
 end
 
-script.on_event(defines.events.on_player_created, on_player_created )
+script.on_event(defines.events.on_cutscene_cancelled, on_cutscene_cancelled)
 
 --------------------------------------------------------------------------------------
 local function on_player_joined_game(event)

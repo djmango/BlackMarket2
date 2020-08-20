@@ -1,4 +1,4 @@
--- utils.lua by binbinhfr, v1.0.16
+-- utils.lua by binbinhfr, v1.0.17, now maintained by djmango
 
 -- define debug_status to 1 or nil in the control.lua, before statement require("utils")
 -- define also debug_file and debug_mod_name
@@ -62,76 +62,6 @@ lightcolors = {
 	yellow = colors.orange,
 	pink = colors.purple,
 }
-
-local author_name1 = "BinbinHfr"
-local author_name2 = "binbin"
-
---------------------------------------------------------------------------------------
-function read_version(v)
-	local v1, v2, v3 = string.match(v, "(%d+).(%d+).(%d+)")
-	debug_print( "version cut = ", v1,v2,v3)
-end
-
---------------------------------------------------------------------------------------
-function compare_versions(v1,v2)
-	local v1a, v1b, v1c = string.match(v1, "(%d+).(%d+).(%d+)")
-	local v2a, v2b, v2c = string.match(v2, "(%d+).(%d+).(%d+)")
-	
-	v1a = tonumber(v1a)
-	v1b = tonumber(v1b)
-	v1c = tonumber(v1c)
-	v2a = tonumber(v2a)
-	v2b = tonumber(v2b)
-	v2c = tonumber(v2c)
-	
-	if v1a > v2a then
-		return 1
-	elseif v1a < v2a then
-		return -1
-	elseif v1b > v2b then
-		return 1
-	elseif v1b < v2b then
-		return -1
-	elseif v1c > v2c then
-		return 1
-	elseif v1c < v2c then
-		return -1
-	else
-		return 0
-	end
-end
-
---------------------------------------------------------------------------------------
-function older_version(v1,v2)
-	local v1a, v1b, v1c = string.match(v1, "(%d+).(%d+).(%d+)")
-	local v2a, v2b, v2c = string.match(v2, "(%d+).(%d+).(%d+)")
-	local ret
-	
-	v1a = tonumber(v1a)
-	v1b = tonumber(v1b)
-	v1c = tonumber(v1c)
-	v2a = tonumber(v2a)
-	v2b = tonumber(v2b)
-	v2c = tonumber(v2c)
-	
-	if v1a > v2a then
-		ret = false
-	elseif v1a < v2a then
-		ret = true
-	elseif v1b > v2b then
-		ret = false
-	elseif v1b < v2b then
-		ret = true
-	elseif v1c < v2c then
-		ret = true
-	else
-		ret = false
-	end
-	
-	debug_print( "older_version ", v1, "<", v2, "=", ret )
-	
-	return(ret)
-end
 
 --------------------------------------------------------------------------------------
 function debug_active(...)
@@ -281,11 +211,6 @@ function concat_lists(list1, list2)
 	for i, obj in pairs(list2) do
 		table.insert(list1,obj)
 	end
-end
-
-------------------------------------------------------------------------------------
-function is_dev(player)
-	return( player.name == author_name1 or player.name == author_name2 )
 end
 
 --------------------------------------------------------------------------------------

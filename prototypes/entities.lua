@@ -130,7 +130,7 @@ data:extend(
 		--------------------------------------------------------------------------------------
 		{
 			type = "technology",
-			name = "black-market-mk-2",
+			name = "black-market-mk2",
 			icon = "__BlackMarket2__/graphics/black-market-mk.png",
 			icon_size = 128,
 			enabled = true,
@@ -153,12 +153,12 @@ data:extend(
 		--------------------------------------------------------------------------------------
 		{
 			type = "technology",
-			name = "black-market-mk-3",
+			name = "black-market-mk3",
 			icon = "__BlackMarket2__/graphics/black-market-mk.png",
 			icon_size = 128,
 			enabled = true,
 			upgrade = true,
-			prerequisites = { "black-market-mk-2" },
+			prerequisites = { "black-market-mk2" },
 			unit = {
 				count = 200,
 				ingredients = {
@@ -176,12 +176,12 @@ data:extend(
 		--------------------------------------------------------------------------------------
 		{
 			type = "technology",
-			name = "black-market-mk-4",
+			name = "black-market-mk4",
 			icon = "__BlackMarket2__/graphics/black-market-mk.png",
 			icon_size = 128,
 			enabled = true,
 			upgrade = true,
-			prerequisites = { "black-market-mk-3" },
+			prerequisites = { "black-market-mk3" },
 			unit = {
 				count = 250,
 				ingredients = {
@@ -309,7 +309,7 @@ local function add_chests(level)
 	)
 	
 	if level > 1 then
-		local techno_name = "black-market-mk-" .. level
+		local techno_name = "black-market-mk" .. level
 		table.insert( data.raw["technology"][techno_name].effects,
 			{
 				type = "unlock-recipe",
@@ -417,7 +417,7 @@ local function add_tanks(level)
 		}
 	)
 	if level > 1 then
-		local techno_name = "black-market-mk-" .. level
+		local techno_name = "black-market-mk" .. level
 		table.insert( data.raw["technology"][techno_name].effects,
 			{
 				type = "unlock-recipe",
@@ -537,7 +537,7 @@ local function add_accus(level)
 		}
 	)
 	if level > 1 then
-		local techno_name = "black-market-mk-" .. level
+		local techno_name = "black-market-mk" .. level
 		table.insert( data.raw["technology"][techno_name].effects,
 			{
 				type = "unlock-recipe",

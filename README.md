@@ -28,7 +28,10 @@ Sell and buy items/fluids/energy on the universal black market using trading che
 * You can withdraw some cash from your account by buying Ucoins items : there is no fee on such a purchase, and you will get Ucoins items in return in the chest. You can use these Ucoins items to give money to a player from another force (using TradingChests mod for example). You can also deposit some cash on your account, selling Ucoins items with no fee.
 * Hover your mouse on buttons and labels to see tooltips.
 * To display the hour of the day, and be aware of transaction times, I recommand installing my [url=https://mods.factorio.com/mods/binbinhfr/TimeTools]TimeTools[/url] mod that provides a clock in the top bar.
-
+* Add Combinator read market prices
+* Add Transaction logs
+* Add stats Graph / income vs. expenses
+  
 ## Contributors
 * [Contributors graph](https://github.com/djmango/BlackMarket2/graphs/contributors)
 * [@BinbinHfr](https://mods.factorio.com/user/binbinhfr), original mod creator

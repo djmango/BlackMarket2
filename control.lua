@@ -2060,7 +2060,6 @@ local function on_cutscene_cancelled(event)
 		inv.insert({name="trader-accu-buy", count=10})
 		inv.insert({name="ucoin", count=100000})
 		debug_print("created debug inv")
-		end
 	end
 end
 

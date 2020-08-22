@@ -830,7 +830,6 @@ local function update_objects_prices_start()
 	global.new_resources = new_resources
 	global.free_products = free_products
 	
-	global.prices_loop = 0
 	global.ingredients_to_parse = ingredients_to_parse
 end
 
@@ -912,17 +911,66 @@ local function update_products_recipe(recipe)
 	return(new_ingrs)
 end
 
+local function compute_recipe_cost(recipe_name)
+	local recipe = game.forces.player.recipes[recipe_name]
+	local recipe_cost = 0
+
+	-- iterate thru ingredients and make sure they have a set cost
+	local ingredients_cost = 0
+	table.for_each(recipe.ingredients, function(ingredient)
+		local ingredient_cost = nil
+
+		if known_prices[ingredient.name] ~= nil then -- do we know the price thru a constant?
+			ingredient_cost = known_prices[ingredient.name]
+			
+		elseif ingredient_cost == nil and global.item_recipes[ingredient.name] ~= nil then -- if not and we have a recipe for the ingredient then loop through the ingredient recipe to compute cost
+			ingredient_cost = 0
+			-- this recursivley checks the cost of each recipe and returns us the highest recipe cost, thus, the cost of the ingredient
+			table.for_each(global.item_recipes[ingredient.name], function(ingredient_recipe)
+
+				local hasCatylist = false
+
+				-- check for catylists - an item that exists both as an ingredient and a product
+
+				table.for_each(game.forces.player.recipes[ingredient_recipe].products, function(product)
+					if product.catalyst_amount ~= nil and product.catalyst_amount > 0 then hasCatylist = true end
+				end)
+
+				if hasCatylist == false then -- i fucking hate recursive recipes.. it causes infinite recursion within this method
+					local recipe_cost = compute_recipe_cost(ingredient_recipe)
+					if recipe_cost > ingredient_cost then ingredient_cost = recipe_cost end -- THIS NEEDS TO BE REPLACED
+				end
+			end)
+			
+			known_prices[ingredient.name] = ingredient_cost
+			
+		elseif ingredient_cost == nil then -- unknown raw mats
+			ingredient_cost = 100
+		end
+
+		ingredient_cost = ingredient_cost * ingredient.amount
+
+		ingredients_cost = ingredients_cost + ingredient_cost
+		debug_print(ingredient.name .. ' brings cost to ' .. ingredients_cost)
+	end)
+
+	local tech_cost = 0
+	local energy_cost = 0
+
+	-- recipe_cost = (tech_cost + ingredients_cost + energy_cost) * (1+commercial_margin)
+	recipe_cost = (tech_cost + ingredients_cost + energy_cost)
+	return (recipe_cost)
+end
+
 --------------------------------------------------------------------------------------
-local function update_objects_prices_loop()
+local function update_objects_prices()
 	local new_price = true
 	
 	new_price = false
-	global.prices_loop = global.prices_loop + 1
 
-	global.item_recipes = {}
 	-- looks like {..., item_name = {recipe_1, recipe_2}}
 
-	-- iterate thru recipies and find products, recpie[product][1][0].name = recipei
+	--  this links items (products) to their recipe(s)
 	table.for_each(game.forces.player.recipes, function(recipe)
 		table.for_each(recipe.products, function(product)
 			item_recipe = global.item_recipes[product.name] or {}
@@ -931,20 +979,18 @@ local function update_objects_prices_loop()
 			item_recipe[#item_recipe+1] = recipe.name
 
 			global.item_recipes[product.name] = item_recipe
-			debug_print(#global.item_recipes)
 		end)
 	end)
 
+	compute_recipe_cost(global.item_recipes['accumulator'][1])
 	-- right so now we have each item matched to every recipe that can produce it, inside global.item_recipes
-
+	-- now we need to compute the cost for each recipe
 	return(new_price)
 end
 
 --------------------------------------------------------------------------------------
 local function update_objects_prices_end()
 	debug_print( "PRICES PASS final" )
-	
-	debug_print( "nb loops = ", global.prices_loop)
 
 	-- mark left unpriced potential ingredients as unknown
 	-- no ! (ingredients left in this list are priced but they lead to recipes with ever-missing ingredients...
@@ -1826,9 +1872,10 @@ local function init_globals()
 	global.hour = global.hour or -1 -- hour (always increases, does not reset at 24...)
 	global.hour_prev = global.hour_prev or -1
 	global.hour_changed = 0
+
+	global.item_recipes = {}
 	
 	if global.prices_computed == nil then global.prices_computed = false end
-	global.prices_loop = global.prices_loop or -1
 
 	if global.techs_costs == nil then -- costs for every tech
 		update_techs_costs() 
@@ -2224,15 +2271,9 @@ local function on_tick(event)
 		-- manage prices list build
 
 		if global.prices_computed then
-			-- message_all({"blkmkt-gui-rescan-progr",global.prices_loop})
 			
-			if global.prices_loop ==  0 then
-				close_guis()
-			end
-			
-			if (not update_objects_prices_loop()) or global.prices_loop > 15 then
+			if (not update_objects_prices()) then
 				update_objects_prices_end()
-				global.prices_loop = 0
 				
 				update_groups()
 				export_uncommons()

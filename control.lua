@@ -7,6 +7,7 @@ require("utils")
 require("config")
 require("mod-gui")
 local table = require('__flib__.table')
+local binser = require "binser"
 
 local trader_type = { item=1, fluid=2, energy=3, "item", "fluid", "energy" }
 local energy_name = "market-energy" -- name of fake energy item
@@ -624,9 +625,9 @@ local function init_tax_rates()
 	
 	for _, period in ipairs(periods) do
 		if period == 0 then
-			global.tax_rates[period] = tax_immediate -- tax for immediate action
+			global.tax_rates[period] = settings.startup["BM2-tax_immediate"].value -- tax for immediate action
 		else
-			global.tax_rates[period] = math.floor(0.5+tax_start * ((24/period) ^ tax_growth))
+			global.tax_rates[period] = math.floor(0.5+settings.startup["BM2-tax_start"].value * ((24/period) ^ settings.startup["BM2-tax_growth"].value))
 		end
 	end
 	
@@ -914,62 +915,28 @@ end
 --------------------------------------------------------------------------------------
 local function update_objects_prices_loop()
 	local new_price = true
-	local ingredients_to_parse2 = {}
 	
 	new_price = false
 	global.prices_loop = global.prices_loop + 1
 
-	if debug_status == 1 then game.print("PRICES PASS " .. global.prices_loop) end
-	
-	local recipes = game.forces.player.recipes
-	
-	if true then
-		-- try to solve direct recipes (1 product with the recipe of the same name)
-		table.for_each(game.item_prototypes, function(item)
-			local recipe = recipes[item.name]
+	global.item_recipes = {}
+	-- looks like {..., item_name = {recipe_1, recipe_2}}
 
-			if global.recipes_parsed[item.name] == nil and recipe ~= nil then
-				ingredients_to_parse3 = update_products_recipe(recipe)
-				
-				if ingredients_to_parse3 == nil then
-					-- ingredient still not solved, rescan in next pass
-					ingredients_to_parse2[item.name] = true 
-				else
-					-- ingredient solved, recipe products became new ingredients for next pass
-					new_price = true
-					for name_ingr, _ in pairs(ingredients_to_parse3) do
-						ingredients_to_parse2[name_ingr] = true
-					end
-				end
-			end
+	-- iterate thru recipies and find products, recpie[product][1][0].name = recipei
+	table.for_each(game.forces.player.recipes, function(recipe)
+		table.for_each(recipe.products, function(product)
+			item_recipe = global.item_recipes[product.name] or {}
+			-- item_recipe is just a list of recipes that make an item, stored under the name of said item in global.item_recipes
+			
+			item_recipe[#item_recipe+1] = recipe.name
+
+			global.item_recipes[product.name] = item_recipe
+			debug_print(#global.item_recipes)
 		end)
-	end
-	
-	for name_recipe, recipe in pairs(recipes) do
-		if global.recipes_parsed[name_recipe] == nil then
-			for _, ingr in pairs(recipe.ingredients) do
-				if global.ingredients_to_parse[ingr.name] == true then
-					-- debug_print( "ingr    ", ingr.name, " -> recipe ", name_recipe )
+	end)
 
-					ingredients_to_parse3 = update_products_recipe(recipe)
-					
-					if ingredients_to_parse3 == nil then
-						-- ingredient still not solved, rescan in next pass
-						ingredients_to_parse2[ingr.name] = true 
-					else
-						-- ingredient solved, recipe products became new ingredients for next pass
-						new_price = true
-						for name_ingr, _ in pairs(ingredients_to_parse3) do
-							ingredients_to_parse2[name_ingr] = true
-						end
-					end
-				end
-			end
-		end
-	end
-	
-	global.ingredients_to_parse = ingredients_to_parse2
-	
+	-- right so now we have each item matched to every recipe that can produce it, inside global.item_recipes
+
 	return(new_price)
 end
 

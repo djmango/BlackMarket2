@@ -103,14 +103,6 @@ data:extend({
     -- special manually declared prices
     {
         type = "int-setting",
-        name = "BM2-coin",
-        setting_type = "startup",
-        minimum_value = 0,
-        default_value = 1,
-        order = "ca"
-    },
-    {
-        type = "int-setting",
         name = "BM2-ucoin",
         setting_type = "startup",
         minimum_value = 0,
@@ -156,22 +148,6 @@ data:extend({
         minimum_value = 0,
         default_value = 1331,
         order = "cf"
-    },
-    {
-        type = "int-setting",
-        name = "BM2-gold_plate",
-        setting_type = "startup",
-        minimum_value = 0,
-        default_value = 10000,
-        order = "cg"
-    },
-    {
-        type = "int-setting",
-        name = "BM2-gold_ingot",
-        setting_type = "startup",
-        minimum_value = 0,
-        default_value = 11500,
-        order = "ch"
     },
     
     -- other prices

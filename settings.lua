@@ -46,7 +46,7 @@ data:extend({
         name = "BM2-unknown_price",
         setting_type = "startup",
         minimum_value = 0,
-        default_value = 0,
+        default_value = 100,
         order = "ae"
     },
 

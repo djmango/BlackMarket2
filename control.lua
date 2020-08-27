@@ -925,7 +925,10 @@ local function compute_recipe_cost(recipe_name)
 			
 		elseif ingredient_cost == nil and global.item_recipes[ingredient.name] ~= nil then -- if not and we have a recipe for the ingredient then loop through the ingredient recipe to compute cost
 			ingredient_cost = 0
-			-- this recursivley checks the cost of each recipe and returns us the highest recipe cost, thus, the cost of the ingredient
+			local highest_purity = 0
+			local highest_purity_recipe
+			local highest_purity_recipe_ingredient_amount
+			-- this recursivley calculates the cost of the ingredient, using the most pure recipe
 			table.for_each(global.item_recipes[ingredient.name], function(ingredient_recipe)
 
 				local hasCatylist = false
@@ -936,16 +939,34 @@ local function compute_recipe_cost(recipe_name)
 					if product.catalyst_amount ~= nil and product.catalyst_amount > 0 then hasCatylist = true end
 				end)
 
-				if hasCatylist == false then -- i fucking hate recursive recipes.. it causes infinite recursion within this method
-					local recipe_cost = compute_recipe_cost(ingredient_recipe)
-					if recipe_cost > ingredient_cost then ingredient_cost = recipe_cost end -- THIS NEEDS TO BE REPLACED
+				if hasCatylist == false then
+					local other_amount = 0 -- the other stuff that the recipe produces
+					local ingredient_amount = 0 -- the stuff we are actually trying to solve for
+					table.for_each(game.forces.player.recipes[ingredient_recipe].products, function(product)
+						-- here we catogorize each of the recipes products into product or other
+						if product.name == ingredient.name then ingredient_amount = ingredient_amount + product.amount
+						else other_amount = other_amount + product.amount end
+					end)
+
+					-- cant divide by 0
+					if other_amount == 0 then other_amount = 1 end
+					
+					-- if this is the new best recipe then store it
+					local purity = ingredient_amount/other_amount
+					if purity > highest_purity then
+						highest_purity = purity
+						highest_purity_recipe = ingredient_recipe
+						highest_purity_recipe_ingredient_amount = ingredient_amount
+					end
+
 				end
 			end)
-			
+
+			ingredient_cost = compute_recipe_cost(highest_purity_recipe) / highest_purity_recipe_ingredient_amount
 			known_prices[ingredient.name] = ingredient_cost
 			
 		elseif ingredient_cost == nil then -- unknown raw mats
-			ingredient_cost = 100
+			ingredient_cost = settings.startup["BM2-unknown_price"].value -- this should really only happen if a mod introduces a new raw mat
 		end
 
 		ingredient_cost = ingredient_cost * ingredient.amount

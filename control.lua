@@ -1,4 +1,4 @@
-debug_status = 1
+debug_status = 0
 debug_mod_name = "BlackMarket2"
 debug_file = debug_mod_name .. "-debug.txt"
 prices_file = debug_mod_name .. "-prices.csv"

@@ -93,6 +93,14 @@ data:extend({
     },
     {
         type = "int-setting",
+        name = "BM2-uranium_price",
+        setting_type = "startup",
+        minimum_value = 0,
+        default_value = 82,
+        order = "be"
+    },
+    {
+        type = "int-setting",
         name = "BM2-oil_price",
         setting_type = "startup",
         minimum_value = 0,
@@ -111,7 +119,7 @@ data:extend({
     },
     {
         type = "int-setting",
-        name = "BM2-raw_wood",
+        name = "BM2-wood",
         setting_type = "startup",
         minimum_value = 0,
         default_value = 51,

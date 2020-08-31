@@ -13,6 +13,7 @@ vanilla_resources_prices = {
 	["iron-ore"] = settings.startup["BM2-iron_price"].value,
 	["copper-ore"] = settings.startup["BM2-copper_price"].value,
 	["crude-oil"] = settings.startup["BM2-oil_price"].value,
+	["uranium-ore"] = settings.startup["BM2-uranium_price"].value,
 }
 
 -- special manually declared prices
@@ -20,7 +21,7 @@ vanilla_resources_prices = {
 special_prices = {
 	["ucoin"] = settings.startup["BM2-ucoin"].value,
 
-	["raw-wood"] = settings.startup["BM2-raw_wood"].value,
+	["wood"] = settings.startup["BM2-wood"].value,
 	["raw-fish"] = settings.startup["BM2-raw_fish"].value,
 
 	["thermal-water"] = settings.startup["BM2-thermal_water"].value,
@@ -28,21 +29,6 @@ special_prices = {
 	["empty-canister"] = settings.startup["BM2-empty_canister"].value, -- from bob (but "empty-" is also prefix from omnibarrel exclusion...
 	["empty-barrel"] = settings.startup["BM2-empty_barrel"].value, -- from vanilla (but "empty-" is also prefix from omnibarrel exclusion...
 
-}
-
-known_prices = { -- for 2.0 price evaluation system
-	["water"] = settings.startup["BM2-water_price"].value,
-	["coal"] = settings.startup["BM2-coal_price"].value,
-	["stone"] = settings.startup["BM2-stone_price"].value,
-	["iron-ore"] = settings.startup["BM2-iron_price"].value,
-	["copper-ore"] = settings.startup["BM2-copper_price"].value,
-	["crude-oil"] = settings.startup["BM2-oil_price"].value,
-
-	["ucoin"] = settings.startup["BM2-ucoin"].value,
-	["raw-wood"] = settings.startup["BM2-raw_wood"].value,
-	["raw-fish"] = settings.startup["BM2-raw_fish"].value,
-	["thermal-water"] = settings.startup["BM2-thermal_water"].value,
-	["empty-barrel"] = settings.startup["BM2-empty_barrel"].value,
 }
 
 energy_price= settings.startup["BM2-energy_price"].value -- price for selling and buying energy (for 1MJ)

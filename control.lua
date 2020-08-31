@@ -943,94 +943,78 @@ local function compute_item_cost(item_name)
 	local recipe_name = global.item_recipes[item_name].recipe
 	local recipe = game.forces.player.recipes[recipe_name]
 
-	-- iterate thru ingredients and make sure they have a set cost
-	local ingredients_cost = 0
-	local ingredient_amount
-	for _, ingredient in pairs(recipe.ingredients) do
-		local ingredient_cost = nil
+	if recipe_name == "filter-air" then 
+		debug_print('werwerewr') end
 
+	-- iterate thru ingredients and make sure they have a set cost
+	for _, ingredient in pairs(recipe.ingredients) do
+		local ingredient_cost
+		
 		if global.prices[ingredient.name] ~= nil then -- do we know the price already?
 			ingredient_cost = global.prices[ingredient.name].overall
 			
-		elseif ingredient_cost == nil and global.item_recipes[ingredient.name].recipe ~= nil then -- if not and we have a recipe for the ingredient then loop through the ingredient recipe to compute cost
-			ingredient_cost = 0
-			-- this recursivley calculates the cost of the ingredient, using the most pure recipe
-			
-			ingredient_recipe = global.item_recipes[ingredient.name].recipe
+		elseif global.item_recipes[ingredient.name].recipe ~= nil then -- if not and we have a recipe for the ingredient then loop through and calculate it based on ingredients
+			compute_item_cost(ingredient.name)
 
-			-- check for catylists - an item that exists both as an ingredient and a product
-			local hasCatylist = false
-			table.for_each(game.forces.player.recipes[ingredient_recipe].products, function(product)
-				if product.catalyst_amount ~= nil and product.catalyst_amount > 0 then hasCatylist = true end
-			end)
-
-			if hasCatylist == false then
-				ingredient_amount = 0 -- the stuff we are actually trying to solve for
-				table.for_each(game.forces.player.recipes[ingredient_recipe].products, function(product)
-					-- here we catogorize each of the recipes products into product or other
-					if product.name == ingredient.name then
-						if product.amount then
-							ingredient_amount = ingredient_amount + product.amount
-						elseif product.amount_min and product.amount_max and product.probability then
-							ingredient_amount = ingredient_amount + (product.amount_min + product.amount_max) /2 * product.probability
-						end
-					end
-				end)
-			end
-
-			ingredient_cost = math.floor(compute_item_cost(ingredient.name) / ingredient_amount+0.5)
-
-			-- compute cost of ingredient
-			if ingredient_amount == 0 then
-				price = settings.startup["BM2-unknown_price"].value -- sometimes, probability can be 0, leading to total amount = 0
-				global.prices[ingredient.name] = {
-					overall = price,
-					tech = 0,
-					ingrs = 0,
-					energy = 0
-				}
-			else
-				price = ingredients_cost -- also temp
-				global.prices[item_name] = {
-					overall = price, -- we want the price for 1 object !
-					tech = 0,
-					ingrs = ingredients_cost,
-					energy = 0
-				}
-			end
-
-		elseif ingredient_cost == nil then -- unknown raw mats
+		else -- unknown raw mats
+			-- fix this
 			ingredient_cost = settings.startup["BM2-unknown_price"].value -- this should really only happen if a mod introduces a new raw mat
 		end
-
-		ingredients_cost = ingredients_cost + ingredient_cost
-		debug_print(ingredient.name .. ' brings cost to ' .. ingredients_cost)
 	end
 
-	-- recipe_cost = (tech_cost + ingredients_cost + energy_cost) * (1+commercial_margin)
+	-- okay we now know that the price of the igrs are in the prices table, so now we can just add em up
+	local ingredients_cost = 0
+	for _, ingredient in pairs(recipe.ingredients) do
+		ingredients_cost = ingredients_cost + ingredient.amount * global.prices[ingredient.name].overall
+		-- ingredients_cost = ingredients_cost + (global.prices[ingredient.name].overall * ingredient.amount)
+	end
+
+	-- compute tech cost
+	local tech_cost = 0
+	local tech_name = global.recipes_tech[recipe.name]
+	if tech_name then
+		if global.techs_costs[tech_name] then
+			tech_cost = global.techs_costs[tech_name] * tech_amortization
+		end
+	end
+
+	-- count the amount of product we are making for this recipe
+	local product_amount = 0
+	for _, product in pairs(recipe.products) do
+		if product.name == item_name then
+			if product.amount then
+				product_amount = product.amount
+			elseif product.amount_min and product.amount_max and product.probability then
+				product_amount = (product.amount_min + product.amount_max) /2 * product.probability
+			end
+		end
+	end
+
+	-- calculate energy cost
+	local energy_cost = recipe.energy * energy_cost
 
 	-- enter cost of ingredient
 	if ingredient_amount == 0 then
 		price = settings.startup["BM2-unknown_price"].value -- sometimes, probability can be 0, leading to total amount = 0
-		global.prices[ingredient.name] = {
+		global.prices[item_name] = { -- nul
 			overall = price,
 			tech = 0,
 			ingrs = 0,
 			energy = 0
 		}
 	else
-		price = ingredients_cost -- also temp
-		local tech_cost = 0 -- TEMP TODO:
-		local energy_cost = 0 -- ^
+		local tech_total = math.floor(tech_cost / product_amount+0.5)
+		local ingrs_total = math.floor(ingredients_cost / product_amount+0.5)
+		local energy_total = math.floor(energy_cost / product_amount+0.5)
+		price = (tech_total + ingrs_total + energy_total) * (1+commercial_margin)
 		global.prices[item_name] = {
-			overall = price, -- we want the price for 1 object !
-			tech = math.floor(tech_cost / #recipe.products+0.5),
-			ingrs = ingredients_cost,
-			energy = math.floor(energy_cost / #recipe.products+0.5)
+			overall = math.floor(price),
+			tech = tech_total,
+			ingrs = ingrs_total,
+			energy = energy_total
 		}
 	end
-
-	return (global.prices[item_name].overall)
+	return (global.prices[item_name])
 end
 
 --------------------------------------------------------------------------------------
@@ -1052,7 +1036,19 @@ local function update_objects_prices()
 					local old_purity = compute_recipe_purity(item_recipe.recipe, product.name)
 					local new_purity = compute_recipe_purity(recipe.name, product.name)
 
-					if new_purity > old_purity then item_recipe.recipe = recipe.name end -- if our new recipe is more pure than our old one its the new king
+					-- recipe filters here, the recipes we dont want
+
+					-- such as fluid barreling recipes
+					local isBarrel = false
+					if string.match(recipe.name, "barrel") and not string.match(product.name, "barrel") then isBarrel = true end
+
+					-- or recipes with catylists
+					local hasCatylist = false
+					table.for_each(game.forces.player.recipes[recipe.name].products, function(product)
+						if product.catalyst_amount ~= nil and product.catalyst_amount > 0 then hasCatylist = true end
+					end)
+
+					if new_purity > old_purity and isBarrel == false and hasCatylist == false then item_recipe.recipe = recipe.name end -- if our new recipe is more pure than our old one its the new king
 				else item_recipe.recipe = recipe.name end -- if there is no prexisting recipe our new one is king
 			end
 			
@@ -1062,10 +1058,9 @@ local function update_objects_prices()
 	end
 
 	for _, item in pairs(global.item_recipes) do
-		debug_print(item.name)
 		if global.prices[item.name] == nil then
+			debug_print(item.name)
 			compute_item_cost(item.name)
-			debug_print(global.prices[item].overall)
 		end
 	end
 

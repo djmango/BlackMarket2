@@ -5,7 +5,7 @@ data:extend({
         name = "BM2-price_multiplyer",
         setting_type = "startup",
         minimum_value = 0,
-        default_value = 1,
+        default_value = 0.2,
         order = "aaa"
     },
     -- Basic prices

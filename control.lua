@@ -678,14 +678,7 @@ local function update_objects_prices_start()
 	if global.prices_computed then return end
 	
 	global.prices_computed = true
-	
-	-- debug_print("--------------------------------------------------------------------------------------")
-	-- debug_print("update_objects_prices_start")
-	
-	-- debug_print("RAZ")
-	
-	debug_print("--------------------------------------------------------------------------------------")
-	debug_print( "PRICES PASS 0" )
+	debug_print( "update_objects_prices_start" )
 	
 	global.old_prices = global.prices or {} -- to memorize old prices, and restore dynamics later
 	
@@ -745,37 +738,38 @@ local function update_objects_prices_start()
 		end
 	end
 	
-	-- mark item "free" (recipe with no ingredients) or "regularly" produced or consumed
-	-- the rest will be items with no recipe at all
+	-- rMRMRMRMRMR
+	-- -- mark item "free" (recipe with no ingredients) or "regularly" produced or consumed
+	-- -- the rest will be items with no recipe at all
 	
-	for name_recipe, recipe in pairs(recipes) do
-		if not( -- avoid recipes that create normal objects from box/barrels/recycling/dark matter/etc...
-				-- false
-				string.sub(name_recipe,1,3) == "rf-" -- reverse factory mod
-				or string.sub(name_recipe,1,5) == "repl-" -- dark matter mod
-				or string.sub(name_recipe,1,11) == "dry411srev-" -- z recycle mod
-				or string.sub(name_recipe,1,6) == "unbox-" -- boxing mod
-				or string.sub(name_recipe,1,6) == "empty-" -- omnibarrel mod (but also "empty-canister" from bob, that is included in the special_prices...)
-				-- or string.sub(name_recipe,1,4) == "box-" -- boxing mod
-				-- or string.sub(name_recipe,1,6) == "boxed-" -- boxing mod
-				-- or string.sub(name_recipe,1,5) == "fill-" -- omnibarrel mod
-			) then
-			if recipe.ingredients == nil or #recipe.ingredients == 0 then
-				for _, prod in pairs(recipe.products) do
-					if global.prices[prod.name] == nil and not regular_products[prod.name] then
-						free_products[prod.name] = true -- mark free product
-					end
-				end
-			else
-				for _, prod in pairs(recipe.products) do
-					if global.prices[prod.name] == nil then
-						regular_products[prod.name] = true -- mark regular not-free product
-						free_products[prod.name] = nil -- unmark free in case new regular recipe
-					end
-				end
-			end
-		end
-	end
+	-- for name_recipe, recipe in pairs(recipes) do
+	-- 	if not( -- avoid recipes that create normal objects from box/barrels/recycling/dark matter/etc...
+	-- 			-- false
+	-- 			string.sub(name_recipe,1,3) == "rf-" -- reverse factory mod
+	-- 			or string.sub(name_recipe,1,5) == "repl-" -- dark matter mod
+	-- 			or string.sub(name_recipe,1,11) == "dry411srev-" -- z recycle mod
+	-- 			or string.sub(name_recipe,1,6) == "unbox-" -- boxing mod
+	-- 			or string.sub(name_recipe,1,6) == "empty-" -- omnibarrel mod (but also "empty-canister" from bob, that is included in the special_prices...)
+	-- 			-- or string.sub(name_recipe,1,4) == "box-" -- boxing mod
+	-- 			-- or string.sub(name_recipe,1,6) == "boxed-" -- boxing mod
+	-- 			-- or string.sub(name_recipe,1,5) == "fill-" -- omnibarrel mod
+	-- 		) then
+	-- 		if recipe.ingredients == nil or #recipe.ingredients == 0 then
+	-- 			for _, prod in pairs(recipe.products) do
+	-- 				if global.prices[prod.name] == nil and not regular_products[prod.name] then
+	-- 					free_products[prod.name] = true -- mark free product
+	-- 				end
+	-- 			end
+	-- 		else
+	-- 			for _, prod in pairs(recipe.products) do
+	-- 				if global.prices[prod.name] == nil then
+	-- 					regular_products[prod.name] = true -- mark regular not-free product
+	-- 					free_products[prod.name] = nil -- unmark free in case new regular recipe
+	-- 				end
+	-- 			end
+	-- 		end
+	-- 	end
+	-- end
 	
 	-- mark potential undeclared new resources (that are ingredients but never produced)
 	
@@ -943,13 +937,8 @@ local function compute_item_cost(item_name)
 	local recipe_name = global.item_recipes[item_name].recipe
 	local recipe = game.forces.player.recipes[recipe_name]
 
-	if recipe_name == "filter-air" then 
-		debug_print('werwerewr') end
-
 	-- iterate thru ingredients and make sure they have a set cost
 	for _, ingredient in pairs(recipe.ingredients) do
-		local ingredient_cost
-		
 		if global.prices[ingredient.name] ~= nil then -- do we know the price already?
 			ingredient_cost = global.prices[ingredient.name].overall
 			
@@ -957,8 +946,12 @@ local function compute_item_cost(item_name)
 			compute_item_cost(ingredient.name)
 
 		else -- unknown raw mats
-			-- fix this
-			ingredient_cost = settings.startup["BM2-unknown_price"].value -- this should really only happen if a mod introduces a new raw mat
+			global.prices[item_name] = {
+				overall = settings.startup["BM2-unknown_price"].value, -- this should really only happen if a mod introduces a new raw mat,
+				tech = 0,
+				ingrs = 0,
+				energy = 0
+			}
 		end
 	end
 
@@ -1028,7 +1021,7 @@ local function update_objects_prices()
 
 			if game.forces.player.recipes[product.name] ~= nil then -- if we can find a direct recipe match for the item then we dont need to do fancy match
 				item_recipe = {name = product.name, recipe = product.name}
-			else
+			else -- recipe matching, the filters avoid recipes that cause issues for the cost computer
 				item_recipe = global.item_recipes[product.name] or {name = product.name, recipe = nil}
 				-- item_recipe is the most pure recipe for product
 
@@ -1058,11 +1051,31 @@ local function update_objects_prices()
 	end
 
 	for _, item in pairs(global.item_recipes) do
-		if global.prices[item.name] == nil then
-			debug_print(item.name)
-			compute_item_cost(item.name)
-		end
+		debug_print(item.name)
+		compute_item_cost(item.name)
 	end
+
+	-- init dynamic prices for new prices, and restore old dynamics if exists
+	
+	for name_object, price in pairs(global.prices) do
+		local old_price = global.old_prices[name_object]
+		
+		if old_price then
+			price.dynamic = old_price.dynamic or 1
+			price.previous = old_price.previous or price.overall
+			price.evolution = old_price.evolution or 0
+		else
+			price.dynamic = 1
+			price.previous = price.overall
+			price.evolution = 0
+		end
+		
+		price.current = price.overall * price.dynamic
+	end
+
+	global.old_prices = nil
+	global.ingredients_to_parse = nil
+	global.prices_computed = false
 
 	return true
 end
@@ -2351,8 +2364,8 @@ local function on_tick(event)
 
 		if global.prices_computed then
 			
-			if (not update_objects_prices()) then
-				update_objects_prices_end()
+			if (update_objects_prices()) then
+				-- update_objects_prices_end()
 				
 				update_groups()
 				export_uncommons()

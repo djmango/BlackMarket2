@@ -1,5 +1,5 @@
 data:extend({
-    -- Overall multiplyer
+    -- High-level settings
     {
         type = "double-setting",
         name = "BM2-price_multiplyer",
@@ -7,6 +7,13 @@ data:extend({
         minimum_value = 0,
         default_value = 1,
         order = "aaa"
+    },
+    {
+        type = "bool-setting",
+        name = "BM2-only_items_researched",
+        setting_type = "runtime-global",
+        default_value = false,
+        order = "aab"
     },
     -- Basic prices
     {

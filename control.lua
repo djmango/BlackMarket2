@@ -689,10 +689,6 @@ local function update_objects_prices_start()
 	global.free_products = {}
 	global.unknowns = {}
 	
-	global.recipes_used = {}
-	global.recipes_parsed = {}
-	
-	local ingredients_to_parse = {}
 	local orig_resources = {}
 	local specials = {}
 	local free_products = {}
@@ -709,7 +705,6 @@ local function update_objects_prices_start()
 	for name, price in pairs(vanilla_resources_prices) do
 		global.prices[name] = {overall=price, tech=0, ingrs=0, energy=0}
 		orig_resources[name] = true
-		ingredients_to_parse[name] = true
 	end
 
 	-- special objects
@@ -717,19 +712,17 @@ local function update_objects_prices_start()
 	for name, price in pairs(special_prices) do
 		global.prices[name] = {overall=price, tech=0, ingrs=0, energy=0}
 		specials[name] = true
-		ingredients_to_parse[name] = true
 	end
 
 	-- additional resources
 	
-	for name, ent in pairs(game.entity_prototypes) do
+	for name, ent in pairs(game.entity_prototypes) do -- raw resources, TODO: this needs some looking at
 		if ent.type == "resource" then 
 			local min_prop = ent.mineable_properties
 			if min_prop.minable and min_prop.products then -- if this object is minable give it the raw ore price
 				for _, prod in pairs(min_prop.products) do
 					if global.prices[prod.name] == nil then
 						global.prices[prod.name] = {overall=resource_price, tech=0, ingrs=0, energy=0}
-						ingredients_to_parse[prod.name] = true
 						orig_resources[prod.name] = true
 					end
 				end
@@ -746,50 +739,17 @@ local function update_objects_prices_start()
 			for _, ingr in pairs(recipe.ingredients) do
 				if global.prices[ingr.name] == nil and regular_products[ingr.name] == nil and free_products[ingr.name] == nil then
 					new_resources[ingr.name] = true -- mark as possible resource
-					ingredients_to_parse[ingr.name] = true
 				end
 			end
 		end
 	end
 	
-	-- give price to free/new resources/unknown
-
-	-- debug_print( "set free/newres/unknown")
-
-	-- for name, object in pairs(game.item_prototypes) do
-	-- 	if global.prices[name] == nil then
-	-- 		if new_resources[name] == true then
-	-- 			global.prices[name] = {overall=nil, tech=0, ingrs=0, energy=0}
-	-- 			ingredients_to_parse[name] = true
-	-- 		elseif free_products[name] == true then
-	-- 			-- debug_print( "set ", name, " free_price")
-	-- 			global.prices[name] = {overall=free_price, tech=0, ingrs=0, energy=0}
-	-- 			ingredients_to_parse[name] = true
-	-- 		end
-	-- 	end
-	-- end
-	
-	-- for name, object in pairs(game.fluid_prototypes) do
-	-- 	if global.prices[name] == nil then
-	-- 		if new_resources[name] == true then
-	-- 			global.prices[name] = {overall=nil, tech=0, ingrs=0, energy=0}
-	-- 			ingredients_to_parse[name] = true
-	-- 		elseif free_products[name] == true then
-	-- 			-- debug_print( "set ", name, " free_price")
-	-- 			global.prices[name] = {overall=free_price, tech=0, ingrs=0, energy=0}
-	-- 			ingredients_to_parse[name] = true
-	-- 		end
-	-- 	end
-	-- end
-
 	regular_products = nil
 
 	global.orig_resources = orig_resources
 	global.specials = specials
 	global.new_resources = new_resources
 	global.free_products = free_products
-	
-	global.ingredients_to_parse = ingredients_to_parse
 end
 
 local function compute_recipe_purity(recipe_name, item_name)
@@ -937,8 +897,6 @@ local function update_objects_prices()
 			end
 			
 			global.item_recipes[product.name] = item_recipe
-			-- global.prices[product.name].recipe = item_recipe.recipe
-
 		end
 	end
 
@@ -967,62 +925,18 @@ local function update_objects_prices()
 	end
 
 	global.old_prices = nil
-	global.ingredients_to_parse = nil
 	global.prices_computed = false
+
+	-- if only_researched_items is on then remove all that arent researched
+	if only_items_researched then
+		for name, object in pairs(global.prices) do
+			recipe = global.item_recipes[name] or nil
+			if recipe ~= nil and game.forces.player.recipes[recipe.recipe].enabled == false then
+				global.prices[name] = nil end
+		end
+	end
 
 	return true
-end
-
---------------------------------------------------------------------------------------
-local function update_objects_prices_end()
-	debug_print( "PRICES PASS final" )
-
-	-- mark left unpriced potential ingredients as unknown
-	-- no ! (ingredients left in this list are priced but they lead to recipes with ever-missing ingredients...
-	
-	-- for name_ingr, _ in pairs(global.ingredients_to_parse) do
-		-- global.prices[name_ingr] = {overall=unknown_price, tech=0, ingrs=0, energy=0}
-		-- global.unknowns[name_ingr] = true
-	-- end
-	
-	-- mark all other left unpriced items and fluids as unknown for export,
-	-- but still not in price list to avoid display
-
-	for name_object, object in pairs(game.item_prototypes) do
-		if global.prices[name_object] == nil then
-			-- global.prices[name_object] = {overall=unknown_price, tech=0, ingrs=0, energy=0}
-			global.unknowns[name_object] = true
-		end
-	end
-	
-	for name_object, object in pairs(game.fluid_prototypes) do
-		if global.prices[name_object] == nil then
-			-- global.prices[name_object] = {overall=unknown_price, tech=0, ingrs=0, energy=0}
-			global.unknowns[name_object] = true
-		end
-	end
-	
-	-- init dynamic prices for new prices, and restore old dynamics if exists
-	
-	for name_object, price in pairs(global.prices) do
-		local old_price = global.old_prices[name_object]
-		
-		if old_price then
-			price.dynamic = old_price.dynamic or 1
-			price.previous = old_price.previous or price.overall
-			price.evolution = old_price.evolution or 0
-		else
-			price.dynamic = 1
-			price.previous = price.overall
-			price.evolution = 0
-		end
-		
-		price.current = price.overall * price.dynamic
-	end
-	
-	global.old_prices = nil
-	global.ingredients_to_parse = nil
-	global.prices_computed = false
 end
 
 local function multiply_prices()
@@ -1075,7 +989,7 @@ local function list_prices()
 	debug_print("list_prices")
 	
 	for name, price in pairs(global.prices) do
-		local recipe_name = global.recipes_used[name]
+		local recipe_name = name
 		if recipe_name then
 			debug_print("price ", name, "=", price.overall, "=", price.tech, "+", price.ingrs, "+", price.energy, " recipe=", recipe_name)
 		else
@@ -1115,7 +1029,7 @@ local function export_prices()
 	
 	if pcall(game.write_file,prices_file,s,true) then
 		for name, price in pairs(global.prices) do
-			local recipe_name = global.recipes_used[name]
+			local recipe_name = name
 			
 			if recipe_name then
 				local tech_name = global.recipes_tech[recipe_name]
@@ -2262,7 +2176,7 @@ local function on_tick(event)
 				-- update_objects_prices_end()
 				
 				update_groups()
-				export_uncommons()
+				-- export_uncommons()
 				clean_orders_and_transactions()
 				update_dynamic_prices()
 
@@ -2533,7 +2447,7 @@ local function on_gui_click(event)
 		end
 		
 		export_prices()
-		export_uncommons()
+		-- export_uncommons()
 	
 	elseif event_name == "but_blkmkt_gen_rescan_prices"then
 		update_techs_costs()
@@ -2929,4 +2843,3 @@ remote.add_interface( "market", interface )
 -- /c remote.call( "market", "reset" )
 -- /c remote.call( "market", "prices" )
 -- /c remote.call( "market", "credits", 1000000 )
-

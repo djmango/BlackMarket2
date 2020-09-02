@@ -31,6 +31,8 @@ function configure_settings()
 
 	}
 
+	only_items_researched = settings.global["BM2-only_items_researched"].value
+
 	energy_price= settings.global["BM2-energy_price"].value -- price for selling and buying energy (for 1MJ)
 	energy_cost = settings.global["BM2-energy_cost"].value -- cost of energy unit in recipes (time, different from MJ)
 	tech_ingr_cost = settings.global["BM2-tech_ingr_cost"].value -- average cost of a science pack

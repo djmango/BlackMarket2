@@ -1799,8 +1799,6 @@ local function init_globals()
 		-- update_groups()
 	-- end
 	
-	if global.ask_rescan == nil then global.ask_rescan = false end
-	
 	if global.tax_rates == nil then
 		init_tax_rates()
 	end
@@ -1909,7 +1907,6 @@ local function on_configuration_changed(data)
 		gui.init()
 		gui.check_filter_validity()
 		
-		-- global.ask_rescan = true
 		close_guis()
 
 		-- if any other mod install or uninstall, rescan prices ! and clean orders
@@ -2171,11 +2168,6 @@ script.on_event(defines.events.on_entity_settings_pasted,on_entity_settings_past
 local function on_tick(event)
 	if global.tick >= 99 then 
 		global.tick = 0
-		
-		if global.ask_rescan then
-			global.ask_rescan = false
-			message_all({"blkmkt-gui-askrescan"})
-		end
 		
 	elseif global.tick%20 == 1 then
 		-- check hour change

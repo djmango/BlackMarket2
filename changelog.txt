@@ -2,11 +2,12 @@
 Version: 2.0.0
 Date: 2020-09-04
   Changes:
-    - Completely rewrote the price calculation engine. This will improve support with Bobs/Angels or any other large modpacks
+    - Completely rewrote the price calculation engine. This improves compatability with Bobs/Angels or any other large modpacks
     - Made the progression harder, end-game items are much more expensive than they used to be. This can be confgiured, of course
     - Moved settings to the 'Map' tab in Mod Settings. No longer need to restart to apply!
     - Added ability to disable dynamic pricing altogether
     - Added ability to choose to only allow the buying and selling of only items that you have unlocked through research
+    - Small gui improvements
 ---------------------------------------------------------------------------------------------------
 Version: 1.3.0
 Date: 2020-08-29

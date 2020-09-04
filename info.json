@@ -8,7 +8,7 @@
 	"contact": "djmango",
 	"factorio_version":"1.0",
 	"dependencies": [
-		"base >= 0.18.0",
+		"base >= 1.0.0",
 		"flib >= 0.3.0"
 	]
 }

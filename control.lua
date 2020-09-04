@@ -9,6 +9,7 @@ require("mod-gui")
 
 configure_settings()
 local table = require('__flib__.table')
+local gui = require('__flib__.gui')
 -- local binser = require "binser"
 
 local trader_type = { item=1, fluid=2, energy=3, "item", "fluid", "energy" }
@@ -499,8 +500,9 @@ local function update_menu_trader( player, player_mem, update_orders )
 end
 
 --------------------------------------------------------------------------------------
-local function build_menu_objects( player, open_or_close, ask_sel )
+local function build_menu_objects(player, open_or_close, ask_sel)
 	local gui_parent = mod_gui.get_frame_flow(player)
+
 	if open_or_close == nil then
 		open_or_close = (gui_parent.frm_blkmkt_itml == nil)
 	end
@@ -511,16 +513,17 @@ local function build_menu_objects( player, open_or_close, ask_sel )
 	
 	if open_or_close and not global.prices_computed then
 		local player_mem = global.player_mem[player.index]
-		local gui1, gui2, gui3
-		gui1 = mod_gui.get_frame_flow(player).add({type = "frame", name = "frm_blkmkt_itml", caption = {"blkmkt-gui-objects-list"}, style = "frame_blkmkt_style"})
-		gui1 = gui1.add({type = "flow", name = "flw_blkmkt_itml", direction = "vertical", style = "vertical_flow_blkmkt_style"})
-		-- gui1.style.minimal_height = 500
-		gui1.style.minimal_width = 380
+		local main_window, item_table_holder, item_table
+		main_window = mod_gui.get_frame_flow(player).add({type = "frame", name = "frm_blkmkt_itml", caption = {"blkmkt-gui-objects-list"}, style = "frame_blkmkt_style"})
+		-- main_window = main_window.add({type = "empty-widget", ignored_by_interaction="true", name = "main_window_drag_handle", style = "flib_titlebar_drag_handle"})
+		main_window = main_window.add({type = "flow", name = "flw_blkmkt_itml", direction = "vertical", style = "vertical_flow_blkmkt_style"})
+		-- main_window.style.minimal_height = 500
+		main_window.style.minimal_width = 380
 		
-		gui2 = gui1.add({type = "scroll-pane", name = "scr_blkmkt_itml", vertical_scroll_policy = "auto"}) -- , style = "scroll_pane_blkmkt_style"
-		gui2.style.maximal_height = 250
-		player_mem.scr_blkmkt_recl = gui2
-		gui3 = gui2.add({type = "table", name = "tab_blkmkt_itml1", column_count = 6, style = "table_blkmkt_style"})
+		item_table_holder = main_window.add({type = "scroll-pane", name = "scr_blkmkt_itml", vertical_scroll_policy = "auto"}) -- , style = "scroll_pane_blkmkt_style"
+		-- item_table_holder.style.maximal_height = 450
+		player_mem.scr_blkmkt_recl = item_table_holder
+		item_table = item_table_holder.add({type = "table", name = "tab_blkmkt_itml1", column_count = 6, style = "table_blkmkt_style"})
 		
 		local n = 0
 		
@@ -531,14 +534,14 @@ local function build_menu_objects( player, open_or_close, ask_sel )
 				if player_mem.group_sel_name == nil then
 					player_mem.group_sel_name = name
 				end
-				gui3.add({type = "sprite-button", name = "but_blkmkt_ilg_" .. string.format("%3d",n) .. name, sprite = "item-group/" .. name, tooltip = name, style = "sprite_group_blkmkt_style"})
+				item_table.add({type = "sprite-button", name = "but_blkmkt_ilg_" .. string.format("%3d",n) .. name, sprite = "item-group/" .. name, tooltip = name, style = "sprite_group_blkmkt_style"})
 				n=n+1
 			end
 		end
 		
-		gui3 = gui2.add({type = "scroll-pane", name = "tab_blkmkt_scrl2", vertical_scroll_policy = "auto"})
-		gui3.style.maximal_height = 200
-		gui3 = gui3.add({type = "table", name = "tab_blkmkt_itml2", column_count = 10, style = "table_blkmkt_style"})
+		item_table = item_table_holder.add({type = "scroll-pane", name = "flib_naked_scroll_pane_no_padding", vertical_scroll_policy = "auto"})
+		item_table.style.maximal_height = 200
+		item_table = item_table.add({type = "table", name = "tab_blkmkt_itml2", column_count = 10, style = "table_blkmkt_style"})
 		
 		local group = global.groups[player_mem.group_sel_name].group
 		
@@ -549,7 +552,7 @@ local function build_menu_objects( player, open_or_close, ask_sel )
 				if object.group == group and not object.has_flag("hidden") and n <= 999 then
 					local price = global.prices[name]
 					if price then
-						gui3.add({type = "sprite-button", name = "but_blkmkt_ili_" .. string.format("%3d",n) .. name, sprite = "item/" .. name, 
+						item_table.add({type = "sprite-button", name = "but_blkmkt_ili_" .. string.format("%3d",n) .. name, sprite = "item/" .. name, 
 						tooltip = {"blkmkt-gui-tt-object-price",object.localised_name,format_money(price.current),format_evolution(price.evolution)}, style = "sprite_obj_blkmkt_style"})
 						n=n+1
 					end
@@ -563,7 +566,7 @@ local function build_menu_objects( player, open_or_close, ask_sel )
 				if object.group == group and n <= 999 then
 					local price = global.prices[name]
 					if price then
-						gui3.add({type = "sprite-button", name = "but_blkmkt_ili_" .. string.format("%3d",n) .. name, sprite = "fluid/" .. name, 
+						item_table.add({type = "sprite-button", name = "but_blkmkt_ili_" .. string.format("%3d",n) .. name, sprite = "fluid/" .. name, 
 							tooltip = {"blkmkt-gui-tt-object-price",object.localised_name,format_money(price.current),format_evolution(price.evolution)}, style = "sprite_obj_blkmkt_style"})
 						n=n+1
 					end
@@ -571,12 +574,12 @@ local function build_menu_objects( player, open_or_close, ask_sel )
 			end
 		end
 		
-		gui1.add({type = "button", name = "but_blkmkt_itml_refresh", caption = {"blkmkt-gui-refresh"}, style = "button_blkmkt_style"})
+		main_window.add({type = "button", name = "but_blkmkt_itml_refresh", caption = {"blkmkt-gui-refresh"}, style = "button_blkmkt_style"})
 		
 		if ask_sel then
-			gui1.add({type = "button", name = "but_blkmkt_itml_cancel", caption = {"blkmkt-gui-cancel"}, style = "button_blkmkt_style"})
+			main_window.add({type = "button", name = "but_blkmkt_itml_cancel", caption = {"blkmkt-gui-cancel"}, style = "button_blkmkt_style"})
 		else
-			gui1.add({type = "button", name = "but_blkmkt_itml_close", caption = {"blkmkt-gui-close"}, style = "button_blkmkt_style"})
+			main_window.add({type = "button", name = "but_blkmkt_itml_close", caption = {"blkmkt-gui-close"}, style = "button_blkmkt_style"})
 		end
 	end
 end
@@ -1876,8 +1879,10 @@ local function init_players()
 end
 
 --------------------------------------------------------------------------------------
-local function on_init() 
+local function on_init()
 	-- called once, the first time the mod is loaded on a game (new or existing game)
+	gui.init()
+	gui.build_lookup_tables()
 	init_globals()
 	init_forces()
 	init_players()
@@ -1885,16 +1890,24 @@ end
 
 script.on_init(on_init)
 
+local function on_load()
+	gui.build_lookup_tables()
+end
+script.on_load(on_load)
+
 --------------------------------------------------------------------------------------
 local function on_configuration_changed(data)
-	-- detect any mod or game version change
-	if data.mod_changes ~= nil then		
 	
+	-- detect any mod or game version change
+	if data.mod_changes ~= nil then
+		
 		init_globals()
 		init_forces()
 		init_players()
-
+		
 		local changes = data.mod_changes[debug_mod_name]
+		gui.init()
+		gui.check_filter_validity()
 		
 		-- global.ask_rescan = true
 		close_guis()

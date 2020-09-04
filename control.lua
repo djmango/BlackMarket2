@@ -6,7 +6,11 @@ specials_file = debug_mod_name .. "-specials.txt"
 require("utils")
 require("config")
 require("mod-gui")
+
+configure_settings()
 local table = require('__flib__.table')
+local gui = require('__flib__.gui')
+-- local binser = require "binser"
 
 local trader_type = { item=1, fluid=2, energy=3, "item", "fluid", "energy" }
 local energy_name = "market-energy" -- name of fake energy item
@@ -496,8 +500,9 @@ local function update_menu_trader( player, player_mem, update_orders )
 end
 
 --------------------------------------------------------------------------------------
-local function build_menu_objects( player, open_or_close, ask_sel )
+local function build_menu_objects(player, open_or_close, ask_sel)
 	local gui_parent = mod_gui.get_frame_flow(player)
+
 	if open_or_close == nil then
 		open_or_close = (gui_parent.frm_blkmkt_itml == nil)
 	end
@@ -508,16 +513,17 @@ local function build_menu_objects( player, open_or_close, ask_sel )
 	
 	if open_or_close and not global.prices_computed then
 		local player_mem = global.player_mem[player.index]
-		local gui1, gui2, gui3
-		gui1 = mod_gui.get_frame_flow(player).add({type = "frame", name = "frm_blkmkt_itml", caption = {"blkmkt-gui-objects-list"}, style = "frame_blkmkt_style"})
-		gui1 = gui1.add({type = "flow", name = "flw_blkmkt_itml", direction = "vertical", style = "vertical_flow_blkmkt_style"})
-		-- gui1.style.minimal_height = 500
-		gui1.style.minimal_width = 380
+		local main_window, item_table_holder, item_table
+		main_window = mod_gui.get_frame_flow(player).add({type = "frame", name = "frm_blkmkt_itml", caption = {"blkmkt-gui-objects-list"}, style = "frame_blkmkt_style"})
+		-- main_window = main_window.add({type = "empty-widget", ignored_by_interaction="true", name = "main_window_drag_handle", style = "flib_titlebar_drag_handle"})
+		main_window = main_window.add({type = "flow", name = "flw_blkmkt_itml", direction = "vertical", style = "vertical_flow_blkmkt_style"})
+		-- main_window.style.minimal_height = 500
+		main_window.style.minimal_width = 380
 		
-		gui2 = gui1.add({type = "scroll-pane", name = "scr_blkmkt_itml", vertical_scroll_policy = "auto"}) -- , style = "scroll_pane_blkmkt_style"
-		gui2.style.maximal_height = 250
-		player_mem.scr_blkmkt_recl = gui2
-		gui3 = gui2.add({type = "table", name = "tab_blkmkt_itml1", column_count = 6, style = "table_blkmkt_style"})
+		item_table_holder = main_window.add({type = "scroll-pane", name = "scr_blkmkt_itml", vertical_scroll_policy = "auto"}) -- , style = "scroll_pane_blkmkt_style"
+		-- item_table_holder.style.maximal_height = 450
+		player_mem.scr_blkmkt_recl = item_table_holder
+		item_table = item_table_holder.add({type = "table", name = "tab_blkmkt_itml1", column_count = 6, style = "table_blkmkt_style"})
 		
 		local n = 0
 		
@@ -528,14 +534,14 @@ local function build_menu_objects( player, open_or_close, ask_sel )
 				if player_mem.group_sel_name == nil then
 					player_mem.group_sel_name = name
 				end
-				gui3.add({type = "sprite-button", name = "but_blkmkt_ilg_" .. string.format("%3d",n) .. name, sprite = "item-group/" .. name, tooltip = name, style = "sprite_group_blkmkt_style"})
+				item_table.add({type = "sprite-button", name = "but_blkmkt_ilg_" .. string.format("%3d",n) .. name, sprite = "item-group/" .. name, tooltip = name, style = "sprite_group_blkmkt_style"})
 				n=n+1
 			end
 		end
 		
-		gui3 = gui2.add({type = "scroll-pane", name = "tab_blkmkt_scrl2", vertical_scroll_policy = "auto"})
-		gui3.style.maximal_height = 200
-		gui3 = gui3.add({type = "table", name = "tab_blkmkt_itml2", column_count = 10, style = "table_blkmkt_style"})
+		item_table = item_table_holder.add({type = "scroll-pane", name = "flib_naked_scroll_pane_no_padding", vertical_scroll_policy = "auto"})
+		item_table.style.maximal_height = 200
+		item_table = item_table.add({type = "table", name = "tab_blkmkt_itml2", column_count = 10, style = "table_blkmkt_style"})
 		
 		local group = global.groups[player_mem.group_sel_name].group
 		
@@ -546,7 +552,7 @@ local function build_menu_objects( player, open_or_close, ask_sel )
 				if object.group == group and not object.has_flag("hidden") and n <= 999 then
 					local price = global.prices[name]
 					if price then
-						gui3.add({type = "sprite-button", name = "but_blkmkt_ili_" .. string.format("%3d",n) .. name, sprite = "item/" .. name, 
+						item_table.add({type = "sprite-button", name = "but_blkmkt_ili_" .. string.format("%3d",n) .. name, sprite = "item/" .. name, 
 						tooltip = {"blkmkt-gui-tt-object-price",object.localised_name,format_money(price.current),format_evolution(price.evolution)}, style = "sprite_obj_blkmkt_style"})
 						n=n+1
 					end
@@ -560,7 +566,7 @@ local function build_menu_objects( player, open_or_close, ask_sel )
 				if object.group == group and n <= 999 then
 					local price = global.prices[name]
 					if price then
-						gui3.add({type = "sprite-button", name = "but_blkmkt_ili_" .. string.format("%3d",n) .. name, sprite = "fluid/" .. name, 
+						item_table.add({type = "sprite-button", name = "but_blkmkt_ili_" .. string.format("%3d",n) .. name, sprite = "fluid/" .. name, 
 							tooltip = {"blkmkt-gui-tt-object-price",object.localised_name,format_money(price.current),format_evolution(price.evolution)}, style = "sprite_obj_blkmkt_style"})
 						n=n+1
 					end
@@ -568,12 +574,12 @@ local function build_menu_objects( player, open_or_close, ask_sel )
 			end
 		end
 		
-		gui1.add({type = "button", name = "but_blkmkt_itml_refresh", caption = {"blkmkt-gui-refresh"}, style = "button_blkmkt_style"})
+		main_window.add({type = "button", name = "but_blkmkt_itml_refresh", caption = {"blkmkt-gui-refresh"}, style = "button_blkmkt_style"})
 		
 		if ask_sel then
-			gui1.add({type = "button", name = "but_blkmkt_itml_cancel", caption = {"blkmkt-gui-cancel"}, style = "button_blkmkt_style"})
+			main_window.add({type = "button", name = "but_blkmkt_itml_cancel", caption = {"blkmkt-gui-cancel"}, style = "button_blkmkt_style"})
 		else
-			gui1.add({type = "button", name = "but_blkmkt_itml_close", caption = {"blkmkt-gui-close"}, style = "button_blkmkt_style"})
+			main_window.add({type = "button", name = "but_blkmkt_itml_close", caption = {"blkmkt-gui-close"}, style = "button_blkmkt_style"})
 		end
 	end
 end
@@ -624,9 +630,9 @@ local function init_tax_rates()
 	
 	for _, period in ipairs(periods) do
 		if period == 0 then
-			global.tax_rates[period] = tax_immediate -- tax for immediate action
+			global.tax_rates[period] = settings.global["BM2-tax_immediate"].value -- tax for immediate action
 		else
-			global.tax_rates[period] = math.floor(0.5+tax_start * ((24/period) ^ tax_growth))
+			global.tax_rates[period] = math.floor(0.5+settings.global["BM2-tax_start"].value * ((24/period) ^ settings.global["BM2-tax_growth"].value))
 		end
 	end
 	
@@ -676,14 +682,7 @@ local function update_objects_prices_start()
 	if global.prices_computed then return end
 	
 	global.prices_computed = true
-	
-	-- debug_print("--------------------------------------------------------------------------------------")
-	-- debug_print("update_objects_prices_start")
-	
-	-- debug_print("RAZ")
-	
-	debug_print("--------------------------------------------------------------------------------------")
-	debug_print( "PRICES PASS 0" )
+	debug_print( "update_objects_prices_start" )
 	
 	global.old_prices = global.prices or {} -- to memorize old prices, and restore dynamics later
 	
@@ -693,10 +692,6 @@ local function update_objects_prices_start()
 	global.free_products = {}
 	global.unknowns = {}
 	
-	global.recipes_used = {}
-	global.recipes_parsed = {}
-	
-	local ingredients_to_parse = {}
 	local orig_resources = {}
 	local specials = {}
 	local free_products = {}
@@ -713,7 +708,6 @@ local function update_objects_prices_start()
 	for name, price in pairs(vanilla_resources_prices) do
 		global.prices[name] = {overall=price, tech=0, ingrs=0, energy=0}
 		orig_resources[name] = true
-		ingredients_to_parse[name] = true
 	end
 
 	-- special objects
@@ -721,54 +715,18 @@ local function update_objects_prices_start()
 	for name, price in pairs(special_prices) do
 		global.prices[name] = {overall=price, tech=0, ingrs=0, energy=0}
 		specials[name] = true
-		ingredients_to_parse[name] = true
 	end
 
 	-- additional resources
 	
-	for name, ent in pairs(game.entity_prototypes) do
+	for name, ent in pairs(game.entity_prototypes) do -- raw resources, TODO: this needs some looking at
 		if ent.type == "resource" then 
 			local min_prop = ent.mineable_properties
-			-- if min_prop.minable then 
-				-- debug_print( name )
-			if min_prop.minable and min_prop.products then 
+			if min_prop.minable and min_prop.products then -- if this object is minable give it the raw ore price
 				for _, prod in pairs(min_prop.products) do
 					if global.prices[prod.name] == nil then
 						global.prices[prod.name] = {overall=resource_price, tech=0, ingrs=0, energy=0}
-						ingredients_to_parse[prod.name] = true
 						orig_resources[prod.name] = true
-					end
-				end
-			end
-		end
-	end
-	
-	-- mark item "free" (recipe with no ingredients) or "regularly" produced or consumed
-	-- the rest will be items with no recipe at all
-	
-	for name_recipe, recipe in pairs(recipes) do
-		if not( -- avoid recipes that create normal objects from box/barrels/recycling/dark matter/etc...
-				-- false
-				string.sub(name_recipe,1,3) == "rf-" -- reverse factory mod
-				or string.sub(name_recipe,1,5) == "repl-" -- dark matter mod
-				or string.sub(name_recipe,1,11) == "dry411srev-" -- z recycle mod
-				or string.sub(name_recipe,1,6) == "unbox-" -- boxing mod
-				or string.sub(name_recipe,1,6) == "empty-" -- omnibarrel mod (but also "empty-canister" from bob, that is included in the special_prices...)
-				-- or string.sub(name_recipe,1,4) == "box-" -- boxing mod
-				-- or string.sub(name_recipe,1,6) == "boxed-" -- boxing mod
-				-- or string.sub(name_recipe,1,5) == "fill-" -- omnibarrel mod
-			) then
-			if recipe.ingredients == nil or #recipe.ingredients == 0 then
-				for _, prod in pairs(recipe.products) do
-					if global.prices[prod.name] == nil and not regular_products[prod.name] then
-						free_products[prod.name] = true -- mark free product
-					end
-				end
-			else
-				for _, prod in pairs(recipe.products) do
-					if global.prices[prod.name] == nil then
-						regular_products[prod.name] = true -- mark regular not-free product
-						free_products[prod.name] = nil -- unmark free in case new regular recipe
 					end
 				end
 			end
@@ -784,230 +742,177 @@ local function update_objects_prices_start()
 			for _, ingr in pairs(recipe.ingredients) do
 				if global.prices[ingr.name] == nil and regular_products[ingr.name] == nil and free_products[ingr.name] == nil then
 					new_resources[ingr.name] = true -- mark as possible resource
-					ingredients_to_parse[ingr.name] = true
 				end
 			end
 		end
 	end
 	
-	-- give price to free/new resources/unknown
-
-	-- debug_print( "set free/newres/unknown")
-
-	for name, object in pairs(game.item_prototypes) do
-		if global.prices[name] == nil then
-			if new_resources[name] == true then
-				-- debug_print( "set ", name, " resource_price_new")
-				global.prices[name] = {overall=resource_price_new, tech=0, ingrs=0, energy=0}
-				ingredients_to_parse[name] = true
-			elseif free_products[name] == true then
-				-- debug_print( "set ", name, " free_price")
-				global.prices[name] = {overall=free_price, tech=0, ingrs=0, energy=0}
-				ingredients_to_parse[name] = true
-			end
-		end
-	end
-	
-	for name, object in pairs(game.fluid_prototypes) do
-		if global.prices[name] == nil then
-			if new_resources[name] == true then
-				-- debug_print( "set ", name, " resource_price_new")
-				global.prices[name] = {overall=resource_price_new, tech=0, ingrs=0, energy=0}
-				ingredients_to_parse[name] = true
-			elseif free_products[name] == true then
-				-- debug_print( "set ", name, " free_price")
-				global.prices[name] = {overall=free_price, tech=0, ingrs=0, energy=0}
-				ingredients_to_parse[name] = true
-			end
-		end
-	end
-
 	regular_products = nil
 
 	global.orig_resources = orig_resources
 	global.specials = specials
 	global.new_resources = new_resources
 	global.free_products = free_products
-	
-	global.prices_loop = 0
-	global.ingredients_to_parse = ingredients_to_parse
 end
 
---------------------------------------------------------------------------------------
-local function update_products_recipe(recipe)
-	local new_ingrs = {}
-	local overall_price = 0
-	local tech_price = 0
-	local ingrs_price = 0
+local function compute_recipe_purity(recipe_name, item_name)
+	local recipe = game.forces.player.recipes[recipe_name]
+
+	local other_amount = 0 -- the other stuff that the recipe produces
+	local ingredient_amount = 0 -- the stuff we are actually trying to solve for
+
+	table.for_each(recipe.products, function(product)
+		-- here we catogorize each of the recipes products into product or other
+		if product.name == item_name then
+			if product.amount then
+				ingredient_amount = ingredient_amount + product.amount
+			elseif product.amount_min and product.amount_max and product.probability then
+				ingredient_amount = ingredient_amount + (product.amount_min + product.amount_max) /2 * product.probability
+			end
+
+		else other_amount = other_amount + product.amount end
+	end)
+
+	-- cant divide by 0
+	if other_amount == 0 then other_amount = 1 end
 	
-	-- compute energy cost
-	local energy_price = recipe.energy * energy_cost
+	-- if this is the new best recipe then store it
+	local purity = ingredient_amount/other_amount
+
+	return purity
+end
+
+local function compute_item_cost(item_name)
+	-- if this is an uncraftable item then we just assume its a raw/unknown
+	if global.item_recipes[item_name] == nil then global.prices[item_name] = { overall = unknown_price, tech = 0, ingrs = 0, energy = 0 } return global.prices[item_name] end
 	
-	-- compute tech amortization
+	-- grab the item's recipe
+	local recipe_name = global.item_recipes[item_name].recipe
+	local recipe = game.forces.player.recipes[recipe_name]
+
+	-- iterate thru ingredients and make sure they have a set cost
+	for _, ingredient in pairs(recipe.ingredients) do
+		if global.prices[ingredient.name] ~= nil then -- do we know the price already?
+			ingredient_cost = global.prices[ingredient.name].overall
+			
+		elseif global.item_recipes[ingredient.name] ~= nil and global.item_recipes[ingredient.name].recipe ~= nil then -- if not and we have a recipe for the ingredient then loop through and calculate it based on ingredients
+			compute_item_cost(ingredient.name)
+
+		else -- unknown raw mats
+			global.prices[item_name] = {
+				overall = unknown_price, -- this should really only happen if a mod introduces a new raw mat,
+				tech = 0,
+				ingrs = 0,
+				energy = 0
+			}
+		end
+	end
+
+	-- okay we now know that the price of the igrs are in the prices table, so now we can just add em up
+	local ingredients_cost = 0
+	for _, ingredient in pairs(recipe.ingredients) do
+		if global.prices[ingredient.name] == nil then compute_item_cost(ingredient.name) end
+		ingredients_cost = ingredients_cost + ingredient.amount * global.prices[ingredient.name].overall
+	end
+
+	-- compute tech cost
+	local tech_cost = 0
 	local tech_name = global.recipes_tech[recipe.name]
 	if tech_name then
-		local tech_cost = global.techs_costs[tech_name]
-		if tech_cost then
-			tech_price = tech_cost * tech_amortization
+		if global.techs_costs[tech_name] then
+			tech_cost = global.techs_costs[tech_name] * tech_amortization
 		end
 	end
 
-	-- compute ingredients costs
-	for _, ingr in pairs(recipe.ingredients) do
-		local price_ingr = global.prices[ingr.name]
-		if price_ingr == nil then
-			return(nil)
-		end
-		ingrs_price = ingrs_price + ingr.amount * price_ingr.overall
-	end
-	
-	-- count products
-	local nb_prods_tot = 0
-	for _, prod in pairs(recipe.products) do
-		if prod.amount then
-			nb_prods_tot = nb_prods_tot + prod.amount
-		elseif prod.amount_min and prod.amount_max and prod.probability then
-			nb_prods_tot = nb_prods_tot + (prod.amount_min + prod.amount_max) /2 * prod.probability
-		else
-			-- debug_print( "     NO amount : ", recipe.name, " ", prod.name )
-		end
-	end
-		
-	-- display costs on products
-	overall_price = (tech_price + ingrs_price + energy_price) * (1+commercial_margin)
-	
-	-- debug_print("     OK nb prods = ", #recipe.products)
-		
-	for _, prod in pairs(recipe.products) do
-		local price = global.prices[prod.name]
-		if price == nil and (prod.amount or (prod.amount_min and prod.amount_max and prod.probability)) then
-			if nb_prods_tot == 0 then
-				price = unknown_price -- sometimes, probability can be 0, leading to nb_prods_tot=0 !
-				global.prices[prod.name] = {
-					overall = price, 
-					tech = 0,
-					ingrs = 0,
-					energy = 0
-				}
-			else
-				price = math.floor(overall_price / nb_prods_tot+0.5)
-				global.prices[prod.name] = {
-					overall = price, -- we want the price for 1 object !
-					tech = math.floor(tech_price / nb_prods_tot+0.5),
-					ingrs = math.floor(ingrs_price / nb_prods_tot+0.5),
-					energy = math.floor(energy_price / nb_prods_tot+0.5)
-				}
+	-- count the amount of product we are making in this recipe
+	local product_amount = 0
+	for _, product in pairs(recipe.products) do
+		if product.name == item_name then
+			if product.amount then
+				product_amount = product.amount
+			elseif product.amount_min and product.amount_max and product.probability then
+				product_amount = (product.amount_min + product.amount_max) /2 * product.probability
 			end
-			-- debug_print("     PR price ", prod.name, " = ", price)
-			global.recipes_used[prod.name] = recipe.name
-			new_ingrs[prod.name] = true -- mark this product as a new potential ingredient of further recipes
-		else
-			-- debug_print("     -- exist ", prod.name, " = ", price.overall)
 		end
 	end
 
-	global.recipes_parsed[recipe.name] = true
+	-- calculate energy cost
+	local energy_cost = recipe.energy * energy_cost
 
-	return(new_ingrs)
+	-- enter cost of ingredient
+	if ingredient_amount == 0 then
+		global.prices[item_name] = { -- sometimes, probability can be 0, leading to total amount = 0
+			overall = unknown_price,
+			tech = 0,
+			ingrs = 0,
+			energy = 0
+		}
+	else
+		local tech_total = math.floor(tech_cost)
+		local ingrs_total = math.floor(ingredients_cost / product_amount+0.5)
+		local energy_total = math.floor(energy_cost / product_amount+0.5)
+		price = (tech_total + ingrs_total + energy_total) * (1+commercial_margin)
+		global.prices[item_name] = {
+			overall = math.floor(price),
+			tech = tech_total,
+			ingrs = ingrs_total,
+			energy = energy_total
+		}
+	end
+	return (global.prices[item_name])
 end
 
 --------------------------------------------------------------------------------------
-local function update_objects_prices_loop()
-	local new_price = true
-	local ingredients_to_parse2 = {}
-	
-	new_price = false
-	global.prices_loop = global.prices_loop + 1
+local function update_objects_prices()
 
-	if debug_status == 1 then game.print("PRICES PASS " .. global.prices_loop) end
-	
-	local recipes = game.forces.player.recipes
-	
-	if true then
-		-- try to solve direct recipes (1 product with the recipe of the same name)
-		table.for_each(game.item_prototypes, function(item)
-			local recipe = recipes[item.name]
+	-- item_recipes looks like {..., item_name = {name, recipe_name}}
 
-			if global.recipes_parsed[item.name] == nil and recipe ~= nil then
-				ingredients_to_parse3 = update_products_recipe(recipe)
-				
-				if ingredients_to_parse3 == nil then
-					-- ingredient still not solved, rescan in next pass
-					ingredients_to_parse2[item.name] = true 
-				else
-					-- ingredient solved, recipe products became new ingredients for next pass
-					new_price = true
-					for name_ingr, _ in pairs(ingredients_to_parse3) do
-						ingredients_to_parse2[name_ingr] = true
-					end
-				end
-			end
-		end)
-	end
-	
-	for name_recipe, recipe in pairs(recipes) do
-		if global.recipes_parsed[name_recipe] == nil then
-			for _, ingr in pairs(recipe.ingredients) do
-				if global.ingredients_to_parse[ingr.name] == true then
-					-- debug_print( "ingr    ", ingr.name, " -> recipe ", name_recipe )
+	--  this links items (products) to their recipe(s)
+	for _, recipe in pairs(game.forces.player.recipes) do
+		for _, product in pairs(recipe.products) do
 
-					ingredients_to_parse3 = update_products_recipe(recipe)
+			if game.forces.player.recipes[product.name] ~= nil then -- if we can find a direct recipe match for the item then we dont need to do fancy match
+				item_recipe = {name = product.name, recipe = product.name}
+			else -- recipe matching, the filters avoid recipes that cause issues for the cost computer
+				item_recipe = global.item_recipes[product.name] or {name = product.name, recipe = nil}
+				-- item_recipe is the most pure recipe for product
+
+				if item_recipe.recipe ~= nil then 
+					local old_purity = compute_recipe_purity(item_recipe.recipe, product.name)
 					
-					if ingredients_to_parse3 == nil then
-						-- ingredient still not solved, rescan in next pass
-						ingredients_to_parse2[ingr.name] = true 
-					else
-						-- ingredient solved, recipe products became new ingredients for next pass
-						new_price = true
-						for name_ingr, _ in pairs(ingredients_to_parse3) do
-							ingredients_to_parse2[name_ingr] = true
-						end
-					end
-				end
+					local new_purity = compute_recipe_purity(recipe.name, product.name)
+
+					-- recipe filters here, the recipes we dont want
+
+					-- such as fluid barreling recipes
+					local isBarrel = false
+					if string.match(recipe.name, "barrel") and not string.match(product.name, "barrel") then
+						isBarrel = true end
+
+					-- or recipes with catylists
+					local hasCatylist = false
+					table.for_each(game.forces.player.recipes[recipe.name].products, function(product)
+						if product.catalyst_amount ~= nil and product.catalyst_amount > 0 then hasCatylist = true end
+					end)
+
+					if new_purity > old_purity and isBarrel == false and hasCatylist == false then item_recipe.recipe = recipe.name end -- our new king passed our filters!
+				else item_recipe.recipe = recipe.name end -- if there is no prexisting recipe our new one is king
 			end
+			
+			global.item_recipes[product.name] = item_recipe
 		end
 	end
-	
-	global.ingredients_to_parse = ingredients_to_parse2
-	
-	return(new_price)
-end
 
---------------------------------------------------------------------------------------
-local function update_objects_prices_end()
-	debug_print( "PRICES PASS final" )
-	
-	debug_print( "nb loops = ", global.prices_loop)
-
-	-- mark left unpriced potential ingredients as unknown
-	-- no ! (ingredients left in this list are priced but they lead to recipes with ever-missing ingredients...
-	
-	-- for name_ingr, _ in pairs(global.ingredients_to_parse) do
-		-- global.prices[name_ingr] = {overall=unknown_price, tech=0, ingrs=0, energy=0}
-		-- global.unknowns[name_ingr] = true
-	-- end
-	
-	-- mark all other left unpriced items and fluids as unknown for export,
-	-- but still not in price list to avoid display
-
-	for name_object, object in pairs(game.item_prototypes) do
-		if global.prices[name_object] == nil then
-			-- global.prices[name_object] = {overall=unknown_price, tech=0, ingrs=0, energy=0}
-			global.unknowns[name_object] = true
-		end
+	for _, item in pairs(global.item_recipes) do
+		if global.prices[item.name] == nil or global.prices[item.name].overall == nil then compute_item_cost(item.name) end
 	end
-	
-	for name_object, object in pairs(game.fluid_prototypes) do
-		if global.prices[name_object] == nil then
-			-- global.prices[name_object] = {overall=unknown_price, tech=0, ingrs=0, energy=0}
-			global.unknowns[name_object] = true
-		end
-	end
-	
+
 	-- init dynamic prices for new prices, and restore old dynamics if exists
 	
 	for name_object, price in pairs(global.prices) do
 		local old_price = global.old_prices[name_object]
+
+		if price.overall == nil then price.overall = unknown_price end -- for all the ones that escaped
 		
 		if old_price then
 			price.dynamic = old_price.dynamic or 1
@@ -1015,27 +920,38 @@ local function update_objects_prices_end()
 			price.evolution = old_price.evolution or 0
 		else
 			price.dynamic = 1
-			price.previous = price.overall
+			price.previous = price.overall or unknown_price
 			price.evolution = 0
 		end
 		
 		price.current = price.overall * price.dynamic
 	end
-	
+
 	global.old_prices = nil
-	global.ingredients_to_parse = nil
 	global.prices_computed = false
+
+	-- if only_researched_items is on then remove all that arent researched
+	if only_items_researched then
+		for name, object in pairs(global.prices) do
+			recipe = global.item_recipes[name] or nil
+			if recipe ~= nil and game.forces.player.recipes[recipe.recipe].enabled == false then
+				global.prices[name] = nil end
+		end
+	end
+
+	return true
 end
 
 local function multiply_prices()
-	if not (settings.startup["BM2-price_multiplyer"] == nil or settings.startup["BM2-price_multiplyer"].value == 1) then -- no point of multiplying prices if its just by 1 or not configured at all
-		table.for_each(global.prices, function(price) price.current = price.current * settings.startup["BM2-price_multiplyer"].value end)
+	if not (settings.global["BM2-price_multiplyer"] == nil or settings.global["BM2-price_multiplyer"].value == 1) then -- no point of multiplying prices if its just by 1 or not configured at all
+		table.for_each(global.prices, function(price) price.current = price.current * settings.global["BM2-price_multiplyer"].value end)
 	end
 end
 
 --------------------------------------------------------------------------------------
 local function update_dynamic_prices()
 	if global.prices_computed then return end
+	if not dynamic_prices_enabled then return end
 	-- update dynamic prices (once per day)
 	
 	for _, price in pairs(global.prices) do
@@ -1076,7 +992,7 @@ local function list_prices()
 	debug_print("list_prices")
 	
 	for name, price in pairs(global.prices) do
-		local recipe_name = global.recipes_used[name]
+		local recipe_name = name
 		if recipe_name then
 			debug_print("price ", name, "=", price.overall, "=", price.tech, "+", price.ingrs, "+", price.energy, " recipe=", recipe_name)
 		else
@@ -1116,7 +1032,7 @@ local function export_prices()
 	
 	if pcall(game.write_file,prices_file,s,true) then
 		for name, price in pairs(global.prices) do
-			local recipe_name = global.recipes_used[name]
+			local recipe_name = name
 			
 			if recipe_name then
 				local tech_name = global.recipes_tech[recipe_name]
@@ -1416,12 +1332,12 @@ local function update_transaction(force_mem,type,name,price,count)
 	force_mem.transactions[name].count = force_mem.transactions[name].count + count
 	
 	-- calculate the dynamic of the price
-	if name ~= "ucoin" then
-		if type == "item" then
+	if name ~= "ucoin" and dynamic_prices_enabled then
+		if type == "item" and dynamic_influence_item ~= 0 then
 			price.dynamic = price.dynamic + count * dynamic_influence_item
-		elseif type == "fluid" then
+		elseif type == "fluid" and dynamic_influence_fluid ~= 0 then
 			price.dynamic = price.dynamic + count * dynamic_influence_fluid
-		else
+		elseif dynamic_influence_energy ~= 0 then
 			price.dynamic = price.dynamic + count * dynamic_influence_energy
 		end
 		
@@ -1859,9 +1775,10 @@ local function init_globals()
 	global.hour = global.hour or -1 -- hour (always increases, does not reset at 24...)
 	global.hour_prev = global.hour_prev or -1
 	global.hour_changed = 0
+
+	global.item_recipes = {}
 	
 	if global.prices_computed == nil then global.prices_computed = false end
-	global.prices_loop = global.prices_loop or -1
 
 	if global.techs_costs == nil then -- costs for every tech
 		update_techs_costs() 
@@ -1962,8 +1879,10 @@ local function init_players()
 end
 
 --------------------------------------------------------------------------------------
-local function on_init() 
+local function on_init()
 	-- called once, the first time the mod is loaded on a game (new or existing game)
+	gui.init()
+	gui.build_lookup_tables()
 	init_globals()
 	init_forces()
 	init_players()
@@ -1971,16 +1890,24 @@ end
 
 script.on_init(on_init)
 
+local function on_load()
+	gui.build_lookup_tables()
+end
+script.on_load(on_load)
+
 --------------------------------------------------------------------------------------
 local function on_configuration_changed(data)
-	-- detect any mod or game version change
-	if data.mod_changes ~= nil then		
 	
+	-- detect any mod or game version change
+	if data.mod_changes ~= nil then
+		
 		init_globals()
 		init_forces()
 		init_players()
-
+		
 		local changes = data.mod_changes[debug_mod_name]
+		gui.init()
+		gui.check_filter_validity()
 		
 		-- global.ask_rescan = true
 		close_guis()
@@ -2257,18 +2184,12 @@ local function on_tick(event)
 		-- manage prices list build
 
 		if global.prices_computed then
-			-- message_all({"blkmkt-gui-rescan-progr",global.prices_loop})
 			
-			if global.prices_loop ==  0 then
-				close_guis()
-			end
-			
-			if (not update_objects_prices_loop()) or global.prices_loop > 15 then
-				update_objects_prices_end()
-				global.prices_loop = 0
+			if (update_objects_prices()) then
+				-- update_objects_prices_end()
 				
 				update_groups()
-				export_uncommons()
+				-- export_uncommons()
 				clean_orders_and_transactions()
 				update_dynamic_prices()
 
@@ -2539,7 +2460,7 @@ local function on_gui_click(event)
 		end
 		
 		export_prices()
-		export_uncommons()
+		-- export_uncommons()
 	
 	elseif event_name == "but_blkmkt_gen_rescan_prices"then
 		update_techs_costs()
@@ -2935,4 +2856,3 @@ remote.add_interface( "market", interface )
 -- /c remote.call( "market", "reset" )
 -- /c remote.call( "market", "prices" )
 -- /c remote.call( "market", "credits", 1000000 )
-

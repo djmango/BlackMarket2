@@ -1,34 +1,33 @@
 data:extend({
-    -- Overall multiplyer
+    -- High-level settings
     {
         type = "double-setting",
         name = "BM2-price_multiplyer",
-        setting_type = "startup",
+        setting_type = "runtime-global",
         minimum_value = 0,
         default_value = 1,
         order = "aaa"
+    },
+    {
+        type = "bool-setting",
+        name = "BM2-only_items_researched",
+        setting_type = "runtime-global",
+        default_value = false,
+        order = "aab"
     },
     -- Basic prices
     {
         type = "int-setting",
         name = "BM2-resource_price",
-        setting_type = "startup",
+        setting_type = "runtime-global",
         minimum_value = 0,
         default_value = 100,
-        order = "aab"
-    },
-    {
-        type = "int-setting",
-        name = "BM2-resource_price_new",
-        setting_type = "startup",
-        minimum_value = 0,
-        default_value = 99,
         order = "ab"
     },
     {
         type = "int-setting",
         name = "BM2-infinite_price",
-        setting_type = "startup",
+        setting_type = "runtime-global",
         minimum_value = 0,
         default_value = 2,
         order = "ac"
@@ -36,7 +35,7 @@ data:extend({
     {
         type = "int-setting",
         name = "BM2-free_price",
-        setting_type = "startup",
+        setting_type = "runtime-global",
         minimum_value = 0,
         default_value = 0,
         order = "ad"
@@ -44,9 +43,9 @@ data:extend({
     {
         type = "int-setting",
         name = "BM2-unknown_price",
-        setting_type = "startup",
+        setting_type = "runtime-global",
         minimum_value = 0,
-        default_value = 100,
+        default_value = 20,
         order = "ae"
     },
 
@@ -54,7 +53,7 @@ data:extend({
     {
         type = "int-setting",
         name = "BM2-water_price",
-        setting_type = "startup",
+        setting_type = "runtime-global",
         minimum_value = 0,
         default_value = 0,
         order = "ba"
@@ -62,7 +61,7 @@ data:extend({
     {
         type = "int-setting",
         name = "BM2-coal_price",
-        setting_type = "startup",
+        setting_type = "runtime-global",
         minimum_value = 0,
         default_value = 16,
         order = "bb"
@@ -70,7 +69,7 @@ data:extend({
     {
         type = "int-setting",
         name = "BM2-stone_price",
-        setting_type = "startup",
+        setting_type = "runtime-global",
         minimum_value = 0,
         default_value = 27,
         order = "bc"
@@ -78,7 +77,7 @@ data:extend({
     {
         type = "int-setting",
         name = "BM2-iron_price",
-        setting_type = "startup",
+        setting_type = "runtime-global",
         minimum_value = 0,
         default_value = 19,
         order = "bd"
@@ -86,15 +85,23 @@ data:extend({
     {
         type = "int-setting",
         name = "BM2-copper_price",
-        setting_type = "startup",
+        setting_type = "runtime-global",
         minimum_value = 0,
         default_value = 21,
         order = "be"
     },
     {
         type = "int-setting",
+        name = "BM2-uranium_price",
+        setting_type = "runtime-global",
+        minimum_value = 0,
+        default_value = 182,
+        order = "be"
+    },
+    {
+        type = "int-setting",
         name = "BM2-oil_price",
-        setting_type = "startup",
+        setting_type = "runtime-global",
         minimum_value = 0,
         default_value = 100,
         order = "bf"
@@ -103,24 +110,16 @@ data:extend({
     -- special manually declared prices
     {
         type = "int-setting",
-        name = "BM2-coin",
-        setting_type = "startup",
-        minimum_value = 0,
-        default_value = 1,
-        order = "ca"
-    },
-    {
-        type = "int-setting",
         name = "BM2-ucoin",
-        setting_type = "startup",
+        setting_type = "runtime-global",
         minimum_value = 0,
         default_value = 1,
         order = "cb"
     },
     {
         type = "int-setting",
-        name = "BM2-raw_wood",
-        setting_type = "startup",
+        name = "BM2-wood",
+        setting_type = "runtime-global",
         minimum_value = 0,
         default_value = 51,
         order = "cc"
@@ -128,15 +127,15 @@ data:extend({
     {
         type = "int-setting",
         name = "BM2-raw_fish",
-        setting_type = "startup",
+        setting_type = "runtime-global",
         minimum_value = 0,
         default_value = 30,
         order = "cca"
     },
     {
         type = "int-setting",
-        name = "BM2-thermal_water",
-        setting_type = "startup",
+        name = "BM2-steam",
+        setting_type = "runtime-global",
         minimum_value = 0,
         default_value = 100,
         order = "cd"
@@ -144,7 +143,7 @@ data:extend({
     {
         type = "int-setting",
         name = "BM2-empty_canister",
-        setting_type = "startup",
+        setting_type = "runtime-global",
         minimum_value = 0,
         default_value = 161,
         order = "ce"
@@ -152,26 +151,10 @@ data:extend({
     {
         type = "int-setting",
         name = "BM2-empty_barrel",
-        setting_type = "startup",
+        setting_type = "runtime-global",
         minimum_value = 0,
         default_value = 1331,
         order = "cf"
-    },
-    {
-        type = "int-setting",
-        name = "BM2-gold_plate",
-        setting_type = "startup",
-        minimum_value = 0,
-        default_value = 10000,
-        order = "cg"
-    },
-    {
-        type = "int-setting",
-        name = "BM2-gold_ingot",
-        setting_type = "startup",
-        minimum_value = 0,
-        default_value = 11500,
-        order = "ch"
     },
     
     -- other prices
@@ -179,7 +162,7 @@ data:extend({
     {
         type = "int-setting",
         name = "BM2-energy_price",
-        setting_type = "startup",
+        setting_type = "runtime-global",
         minimum_value = 0,
         default_value = 500,
         order = "ea"
@@ -187,7 +170,7 @@ data:extend({
     {
         type = "int-setting",
         name = "BM2-energy_cost",
-        setting_type = "startup",
+        setting_type = "runtime-global",
         minimum_value = 0,
         default_value = 20,
         order = "eb"
@@ -195,7 +178,7 @@ data:extend({
     {
         type = "int-setting",
         name = "BM2-tech_ingr_cost",
-        setting_type = "startup",
+        setting_type = "runtime-global",
         minimum_value = 0,
         default_value = 1000,
         order = "ec"
@@ -203,7 +186,7 @@ data:extend({
     {
         type = "double-setting",
         name = "BM2-tech_amortization",
-        setting_type = "startup",
+        setting_type = "runtime-global",
         minimum_value = 0,
         default_value = 0.001,
         order = "ed"
@@ -211,15 +194,23 @@ data:extend({
     {
         type = "double-setting",
         name = "BM2-commercial_margin",
-        setting_type = "startup",
+        setting_type = "runtime-global",
         minimum_value = 0,
         default_value = 0.10,
         order = "ee"
     },
+    -- dynamic price stuff
+    {
+        type = "bool-setting",
+        name = "BM2-dynamic_prices",
+        setting_type = "runtime-global",
+        default_value = true,
+        order = "aa"
+    },
     {
         type = "double-setting",
         name = "BM2-dynamic_regrowth",
-        setting_type = "startup",
+        setting_type = "runtime-global",
         minimum_value = 0,
         default_value = 0.05,
         order = "ef"
@@ -227,7 +218,7 @@ data:extend({
     {
         type = "double-setting",
         name = "BM2-dynamic_influence_item",
-        setting_type = "startup",
+        setting_type = "runtime-global",
         minimum_value = 0,
         default_value = 0.00008,
         order = "eg"
@@ -235,7 +226,7 @@ data:extend({
     {
         type = "double-setting",
         name = "BM2-dynamic_influence_fluid",
-        setting_type = "startup",
+        setting_type = "runtime-global",
         minimum_value = 0,
         default_value = 0.00006,
         order = "eh"
@@ -243,7 +234,7 @@ data:extend({
     {
         type = "double-setting",
         name = "BM2-dynamic_influence_energy",
-        setting_type = "startup",
+        setting_type = "runtime-global",
         minimum_value = 0,
         default_value = 0.0004,
         order = "ei"
@@ -251,7 +242,7 @@ data:extend({
     {
         type = "double-setting",
         name = "BM2-dynamic_minimal",
-        setting_type = "startup",
+        setting_type = "runtime-global",
         minimum_value = 0,
         default_value = 0.01,
         order = "ej"
@@ -259,7 +250,7 @@ data:extend({
     {
         type = "double-setting",
         name = "BM2-dynamic_maximal",
-        setting_type = "startup",
+        setting_type = "runtime-global",
         minimum_value = 0,
         default_value = 2,
         order = "ek"
@@ -269,7 +260,7 @@ data:extend({
     {
         type = "int-setting",
         name = "BM2-tax_start",
-        setting_type = "startup",
+        setting_type = "runtime-global",
         minimum_value = 0,
         default_value = 4,
         order = "fa"
@@ -277,7 +268,7 @@ data:extend({
     {
         type = "double-setting",
         name = "BM2-tax_growth",
-        setting_type = "startup",
+        setting_type = "runtime-global",
         minimum_value = 0,
         default_value = 0.5,
         order = "fb"
@@ -285,7 +276,7 @@ data:extend({
     {
         type = "int-setting",
         name = "BM2-tax_immediate",
-        setting_type = "startup",
+        setting_type = "runtime-global",
         minimum_value = 0,
         default_value = 25,
         order = "fc"

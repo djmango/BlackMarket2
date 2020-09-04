@@ -64,11 +64,12 @@ lightcolors = {
 }
 
 --------------------------------------------------------------------------------------
-function debug_active(...)
+function debug_active(msg, level)
+	level = level or 1
 	-- can be called everywhere, except in on_load where game is not existing
 	local s = ""
 	
-	for i, v in ipairs({...}) do
+	for i, v in ipairs({msg}) do
 		s = s .. tostring(v)
 	end
 

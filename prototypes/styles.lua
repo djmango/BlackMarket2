@@ -244,5 +244,3 @@ default_gui.sprite_obj_blkmkt_style =
 	-- minimal_height = 32,
 	scalable = false
 }
-
-

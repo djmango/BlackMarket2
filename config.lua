@@ -31,6 +31,7 @@ function configure_settings()
 
 	}
 
+	recipe_depth_maximum = settings.global["BM2-recipe_depth_maximum"].value
 	only_items_researched = settings.global["BM2-only_items_researched"].value
 
 	energy_price= settings.global["BM2-energy_price"].value -- price for selling and buying energy (for 1MJ)

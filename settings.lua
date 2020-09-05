@@ -280,5 +280,13 @@ data:extend({
         minimum_value = 0,
         default_value = 25,
         order = "fc"
+    },
+    {
+        type = "int-setting",
+        name = "BM2-recipe_depth_maximum",
+        setting_type = "runtime-global",
+        minimum_value = 1,
+        default_value = 10,
+        order = "ga"
     }
 })

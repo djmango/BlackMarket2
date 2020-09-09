@@ -1,4 +1,9 @@
 ---------------------------------------------------------------------------------------------------
+Version: 2.0.2
+Date: 2020-09-05
+  Changes:
+    - Fixed angels-refining (and i assume some other mods) incompatibility due to recursive recipes
+---------------------------------------------------------------------------------------------------
 Version: 2.0.1
 Date: 2020-09-05
   Changes:

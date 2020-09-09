@@ -785,16 +785,21 @@ local function compute_recipe_purity(recipe_name, item_name)
 	return purity
 end
 
-local function compute_item_cost(item_name, loops)
+local function compute_item_cost(item_name, loops, recipes_used)
 	if loops == nil then loops = 0 end -- my lazy solution to avoid endless recursion
+	if recipes_used == nil then recipes_used = {} end -- same as above
 	loops = loops + 1
 
 	-- if this is an uncraftable item then we just assume its a raw/unknown
-	if global.item_recipes[item_name] == nil or loops > recipe_depth_maximum then global.prices[item_name] = { overall = unknown_price, tech = 0, ingrs = 0, energy = 0 } return global.prices[item_name] end
+	if global.item_recipes[item_name] == nil or loops > recipe_depth_maximum then global.prices[item_name] = {overall = unknown_price, tech = 0, ingrs = 0, energy = 0} return global.prices[item_name] end
 	
 	-- grab the item's recipe
 	local recipe_name = global.item_recipes[item_name].recipe
 	local recipe = game.forces.player.recipes[recipe_name]
+
+	for _, recipe_used in pairs(recipes_used) do if recipe_used == recipe_name then 
+		global.prices[item_name] = {overall = unknown_price, tech = 0, ingrs = 0, energy = 0} return global.prices[item_name] end end
+	recipes_used[#recipes_used+1] = recipe_name
 
 	-- iterate thru ingredients and make sure they have a set cost
 	for _, ingredient in pairs(recipe.ingredients) do
@@ -802,7 +807,7 @@ local function compute_item_cost(item_name, loops)
 			ingredient_cost = global.prices[ingredient.name].overall
 			
 		elseif global.item_recipes[ingredient.name] ~= nil and global.item_recipes[ingredient.name].recipe ~= nil then -- if not and we have a recipe for the ingredient then loop through and calculate it based on ingredients
-			compute_item_cost(ingredient.name, loops)
+			compute_item_cost(ingredient.name, loops, recipes_used)
 
 		else -- unknown raw mats
 			global.prices[item_name] = {
@@ -817,7 +822,7 @@ local function compute_item_cost(item_name, loops)
 	-- okay we now know that the price of the igrs are in the prices table, so now we can just add em up
 	local ingredients_cost = 0
 	for _, ingredient in pairs(recipe.ingredients) do
-		if global.prices[ingredient.name] == nil then compute_item_cost(ingredient.name, loops) end
+		if global.prices[ingredient.name] == nil then compute_item_cost(ingredient.name, loops, recipes_used) end
 		ingredients_cost = ingredients_cost + ingredient.amount * global.prices[ingredient.name].overall
 	end
 

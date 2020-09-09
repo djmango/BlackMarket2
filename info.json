@@ -9,7 +9,6 @@
 	"factorio_version":"1.0",
 	"dependencies": [
 		"base >= 1.0.0",
-		"flib >= 0.3.0",
-		"! angelsrefining"
+		"flib >= 0.3.0"
 	]
 }

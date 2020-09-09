@@ -898,7 +898,11 @@ local function update_objects_prices()
 					-- or recipes with catylists
 					local hasCatylist = false
 					table.for_each(game.forces.player.recipes[recipe.name].products, function(product)
-						if product.catalyst_amount ~= nil and product.catalyst_amount > 0 then hasCatylist = true end
+						-- if the recipe just straight up tells us
+						if product.catalyst_amount ~= nil and product.catalyst_amount > 0 then hasCatylist = true
+						-- otherwise check for name matches
+						else table.for_each(game.forces.player.recipes[recipe.name].ingredients, function(ingr) if ingr.name == product.name then hasCatylist = true end end)
+						end
 					end)
 
 					if new_purity > old_purity and isBarrel == false and hasCatylist == false then item_recipe.recipe = recipe.name end -- our new king passed our filters!
@@ -1029,7 +1033,6 @@ end
 
 --------------------------------------------------------------------------------------
 local function export_prices()
-	if global.prices_computed then return end
 	-- debug_print("export_prices")
 	
 	game.remove_path(prices_file)
@@ -1050,7 +1053,7 @@ local function export_prices()
 				s = name .. ";...;;" 
 					.. price.overall .. ";" .. price.tech .. ";" .. price.ingrs .. ";" .. price.energy .. ";" .. 0.1*math.floor(10*price.current) .. ";" .. 0.1*math.floor(10*price.evolution) .. "\n"
 			end
-			game.write_file(prices_file,s,true)
+			game.write_file('BM2/e.txt',s,true)
 		end
 	end
 end

@@ -36,7 +36,6 @@ Sell and buy items/fluids/energy on the universal black market using trading che
 ## Third party libraries
 * [Core/Class : npo6ka from FNEI mod (MIT)](https://github.com/npo6ka/FNEI)
 * [Factorio*Flib](https://github.com/factoriolib/flib)
-* [@bakpakin : Binser](https://github.com/bakpakin/binser)
 
 ## License 
 * see [LICENSE](https://github.com/djmango/BlackMarket2/blob/master/LICENSE) file

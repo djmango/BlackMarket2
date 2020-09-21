@@ -1,11 +1,10 @@
 data:extend({
     -- High-level settings
     {
-        type = "double-setting",
-        name = "BM2-price_multiplyer",
+        type = "bool-setting",
+        name = "BM2-dynamic_prices",
         setting_type = "runtime-global",
-        minimum_value = 0,
-        default_value = 1,
+        default_value = true,
         order = "aaa"
     },
     {
@@ -15,13 +14,28 @@ data:extend({
         default_value = false,
         order = "aab"
     },
+    {
+        type = "bool-setting",
+        name = "BM2-enable_tax",
+        setting_type = "runtime-global",
+        default_value = true,
+        order = "aac"
+    },
+    {
+        type = "double-setting",
+        name = "BM2-price_multiplyer",
+        setting_type = "runtime-global",
+        minimum_value = 0,
+        default_value = 1,
+        order = "aad"
+    },
     -- Basic prices
     {
         type = "int-setting",
         name = "BM2-resource_price",
         setting_type = "runtime-global",
         minimum_value = 0,
-        default_value = 100,
+        default_value = 30,
         order = "ab"
     },
     {
@@ -29,7 +43,7 @@ data:extend({
         name = "BM2-infinite_price",
         setting_type = "runtime-global",
         minimum_value = 0,
-        default_value = 2,
+        default_value = 0,
         order = "ac"
     },
     {
@@ -140,22 +154,6 @@ data:extend({
         default_value = 100,
         order = "cd"
     },
-    {
-        type = "int-setting",
-        name = "BM2-empty_canister",
-        setting_type = "runtime-global",
-        minimum_value = 0,
-        default_value = 161,
-        order = "ce"
-    },
-    {
-        type = "int-setting",
-        name = "BM2-empty_barrel",
-        setting_type = "runtime-global",
-        minimum_value = 0,
-        default_value = 1331,
-        order = "cf"
-    },
     
     -- other prices
     
@@ -200,13 +198,6 @@ data:extend({
         order = "ee"
     },
     -- dynamic price stuff
-    {
-        type = "bool-setting",
-        name = "BM2-dynamic_prices",
-        setting_type = "runtime-global",
-        default_value = true,
-        order = "aa"
-    },
     {
         type = "double-setting",
         name = "BM2-dynamic_regrowth",
@@ -281,6 +272,7 @@ data:extend({
         default_value = 25,
         order = "fc"
     },
+    -- other
     {
         type = "int-setting",
         name = "BM2-recipe_depth_maximum",

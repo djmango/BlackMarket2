@@ -1,4 +1,4 @@
-debug_status = 0
+debug_status = 1
 debug_mod_name = "BlackMarket2"
 debug_file = debug_mod_name .. "-debug.txt"
 prices_file = debug_mod_name .. "-prices.csv"
@@ -8,9 +8,9 @@ require("config")
 require("mod-gui")
 
 configure_settings()
+
 local table = require('__flib__.table')
 local gui = require('__flib__.gui')
--- local binser = require "binser"
 
 local trader_type = { item=1, fluid=2, energy=3, "item", "fluid", "energy" }
 local energy_name = "market-energy" -- name of fake energy item
@@ -629,11 +629,13 @@ local function init_tax_rates()
 	global.tax_rates = {}
 	
 	for _, period in ipairs(periods) do
-		if period == 0 then
-			global.tax_rates[period] = settings.global["BM2-tax_immediate"].value -- tax for immediate action
-		else
-			global.tax_rates[period] = math.floor(0.5+settings.global["BM2-tax_start"].value * ((24/period) ^ settings.global["BM2-tax_growth"].value))
-		end
+		if tax_enabled == true then
+			if period == 0 then
+				global.tax_rates[period] = tax_immediate -- tax for immediate action
+			else
+				global.tax_rates[period] = math.floor(0.5+tax_start * ((24/period) ^ tax_growth))
+			end
+		else global.tax_rates[period] = 0 end
 	end
 	
 	for period,tax in pairs(global.tax_rates) do
@@ -1170,7 +1172,7 @@ end
 local function compute_force_data(force_mem)
 	local tot_taxes = force_mem.sales_taxes + force_mem.purchases_taxes
 	local tot = force_mem.sales + force_mem.purchases + tot_taxes
-	if tot == 0 then
+	if tot == 0 or tax_enabled == false then
 		force_mem.tax_rate = 0
 	else
 		force_mem.tax_rate = math.floor(0.5+tot_taxes * 100 / tot)
@@ -1327,9 +1329,8 @@ local function sell_trader(trader,force_mem,tax_rate)
 	
 	if trader.entity == nil or not trader.entity.valid then return(nil) end
 	
-	if tax_rate == nil then
-		tax_rate = global.tax_rates[trader.period]
-	end
+	if tax_rate == nil then tax_rate = global.tax_rates[trader.period] end
+	if tax_enabled == false then tax_rate = 0 end
 	
 	local money1, tax1
 	local money = 0
@@ -1398,7 +1399,7 @@ local function sell_trader(trader,force_mem,tax_rate)
 		if price ~= nil then
 			money1 = count * price.current 
 			tax1 = money1 * tax_rate / 100
-			money = money + money1 
+			money = money + money1
 			taxes = taxes + tax1
 			
 			accu.energy = 0
@@ -1424,9 +1425,9 @@ local function buy_trader(trader,force_mem,tax_rate)
 	
 	if trader.entity == nil or not trader.entity.valid then return(nil) end
 	
-	if tax_rate == nil then
-		tax_rate = global.tax_rates[trader.period]
-	end
+	if tax_rate == nil then	tax_rate = global.tax_rates[trader.period] end
+	if tax_enabled == false then tax_rate = 0 end
+
 	local money1
 	local tax1
 	local money = 0
@@ -1521,7 +1522,7 @@ local function buy_trader(trader,force_mem,tax_rate)
 		
 		if order and price then
 			local purchased = math.min(order.count,trader.accu_max - count)
-			money = purchased * price.current 
+			money = purchased * price.current
 			
 			if purchased > 0 and money <= force_mem.credits then
 				taxes = money * tax_rate / 100
@@ -1634,7 +1635,7 @@ end
 local function compute_trader_data(trader,update_orders)
 	if global.prices_computed then return end
 	
-	local tot 
+	local tot
 	
 	if trader.sell_or_buy then
 		tot = trader.money_tot -- + trader.taxes_tot 

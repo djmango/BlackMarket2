@@ -25,14 +25,12 @@ function configure_settings()
 		["raw-fish"] = settings.global["BM2-raw_fish"].value,
 
 		["steam"] = settings.global["BM2-steam"].value,
-
-		["empty-canister"] = settings.global["BM2-empty_canister"].value, -- from bob (but "empty-" is also prefix from omnibarrel exclusion...
-		["empty-barrel"] = settings.global["BM2-empty_barrel"].value, -- from vanilla (but "empty-" is also prefix from omnibarrel exclusion...
-
 	}
 
-	recipe_depth_maximum = settings.global["BM2-recipe_depth_maximum"].value
-	only_items_researched = settings.global["BM2-only_items_researched"].value
+	recipe_depth_maximum = settings.global["BM2-recipe_depth_maximum"].value -- the maximum depth the recipe search can go
+	only_items_researched = settings.global["BM2-only_items_researched"].value -- if only want researched items enabled or not
+	tax_enabled = settings.global["BM2-enable_tax"].value -- if taxes enabled or not
+	dynamic_prices_enabled = settings.global["BM2-dynamic_prices"].value -- if dynamic is enabled or not
 
 	energy_price= settings.global["BM2-energy_price"].value -- price for selling and buying energy (for 1MJ)
 	energy_cost = settings.global["BM2-energy_cost"].value -- cost of energy unit in recipes (time, different from MJ)
@@ -40,13 +38,16 @@ function configure_settings()
 	tech_amortization = settings.global["BM2-tech_amortization"].value -- amortization of the tech cost in object price
 	commercial_margin = settings.global["BM2-commercial_margin"].value -- commercial margin
 
-	dynamic_prices_enabled = settings.global["BM2-dynamic_prices"].value -- if dynamic is enabled or not
 	dynamic_regrowth = settings.global["BM2-dynamic_regrowth"].value -- how prices slowly return to optimal value if untouched (every day)
 	dynamic_influence_item = settings.global["BM2-dynamic_influence_item"].value -- influence of sales and purchases on prices (per item, per day)
 	dynamic_influence_fluid = settings.global["BM2-dynamic_influence_fluid"].value -- influence of sales and purchases on prices (per item, per day)
 	dynamic_influence_energy = settings.global["BM2-dynamic_influence_energy"].value -- influence of sales and purchases on prices (per item, per day)
 	dynamic_minimal = settings.global["BM2-dynamic_minimal"].value
 	dynamic_maximal = settings.global["BM2-dynamic_maximal"].value
+
+	tax_immediate = settings.global["BM2-tax_immediate"].value -- starting fee in % for one action per day
+	tax_start = settings.global["BM2-tax_start"].value -- exponential growth with frequency/day : fee = tax_start * (freq ^ tax_growth)
+	tax_growth = settings.global["BM2-tax_growth"].value -- % fee for immediate action
 
 	periods = {0,1,2,3,4,6,8,12,24} -- available periods in hours
 	default_n_period = 2 -- default period of a new trading chest

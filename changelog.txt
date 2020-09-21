@@ -1,7 +1,10 @@
 ---------------------------------------------------------------------------------------------------
 Version: 2.0.3
-Date: ????
+Date: 2020-09-21
   Changes:
+    - Added setting to disable tax entirely
+    - Fixed tax settings not effecting actual tax
+    - Fixed inf and Nanu errors, namely Angels crushed stone bug
 ---------------------------------------------------------------------------------------------------
 Version: 2.0.2
 Date: 2020-09-05

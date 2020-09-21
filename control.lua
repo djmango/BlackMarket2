@@ -922,13 +922,16 @@ local function update_objects_prices()
 		if global.prices[item.name] == nil or global.prices[item.name].overall == nil then compute_item_cost(item.name) end
 	end
 
-	-- init dynamic prices for new prices, and restore old dynamics if exists
+	-- init dynamic prices for new prices, and restore old dynamics if exists, and filter errors for bad recipes
 	
 	for name_object, price in pairs(global.prices) do
 		local old_price = global.old_prices[name_object]
 
-		if price.overall == nil then price.overall = unknown_price end -- for all the ones that escaped
-		
+		-- filters for all the bad values that escaped
+		if price.overall == nil then price.overall = unknown_price end
+		if price.overall == math.huge then price.overall = unknown_price end
+
+		-- actuall dynamic stuff
 		if old_price then
 			price.dynamic = old_price.dynamic or 1
 			price.previous = old_price.previous or price.overall
@@ -1060,52 +1063,6 @@ local function export_prices()
 			end
 			game.write_file('BM2/e.txt',s,true)
 		end
-	end
-end
-
---------------------------------------------------------------------------------------
-local function export_uncommons()
-	if global.prices_computed then return end
-	-- debug_print("export_uncommons")
-	
-	game.remove_path(specials_file)
-	
-	local s = "-- Special items/fluids : if incorrect, edit prices and add manually to special_prices in config.lua and/or send to binbinhfr on forum : https://forums.factorio.com/viewtopic.php?f=92&t=30889\n"
-
-	if pcall(game.write_file,specials_file,s,true) then
-		game.write_file(specials_file,"	-- Resources (vanilla and modded):\n",true)
-		for name, _ in pairs(global.orig_resources) do
-			s = "	[\"" .. name .. "\"] = " .. global.prices[name].overall .. ",\n"
-			game.write_file(specials_file,s,true)
-		end
-		game.write_file(specials_file,"\n",true)
-		
-		game.write_file(specials_file,"	-- Specials (manually declared prices):\n",true)
-		for name, _ in pairs(global.specials) do
-			s = "	[\"" .. name .. "\"] = " .. global.prices[name].overall .. ",\n"
-			game.write_file(specials_file,s,true)
-		end
-		game.write_file(specials_file,"\n",true)
-		
-		game.write_file(specials_file,"	-- Potential undeclared resources (used as ingredients but never produced):\n",true)
-		for name, _ in pairs(global.new_resources) do
-			s = "	[\"" .. name .. "\"] = " .. global.prices[name].overall .. ",\n"
-			game.write_file(specials_file,s,true)
-		end
-		game.write_file(specials_file,"\n",true)
-		
-		game.write_file(specials_file,"	-- Free items/fluids (products of a recipe without ingredients):\n",true)
-		for name, _ in pairs(global.free_products) do
-			s = "	[\"" .. name .. "\"] = " .. global.prices[name].overall .. ",\n"
-			game.write_file(specials_file,s,true)
-		end
-		game.write_file(specials_file,"\n",true)
-		
-		game.write_file(specials_file,"	-- Unknown items/fluids -> not priced (not present in any recipe or only in isolated looped recipes):\n",true)
-		for name, _ in pairs(global.unknowns) do
-			s = "	[\"" .. name .. "\"] = unknown_price,\n"
-			game.write_file(specials_file,s,true)
-		end		
 	end
 end
 
@@ -1938,6 +1895,8 @@ local function on_configuration_changed(data)
 end
 
 script.on_configuration_changed(on_configuration_changed)
+
+script.on_event(defines.events.on_runtime_mod_setting_changed, configure_settings)
 
 --------------------------------------------------------------------------------------
 local function on_force_created(event)

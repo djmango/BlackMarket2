@@ -1874,6 +1874,7 @@ local function on_configuration_changed(data)
 		init_globals()
 		init_forces()
 		init_players()
+		init_tax_rates()
 		
 		local changes = data.mod_changes[debug_mod_name]
 		gui.init()
@@ -1903,7 +1904,7 @@ script.on_event(defines.events.on_runtime_mod_setting_changed, configure_setting
 local function on_force_created(event)
 	-- called at player creation
 	local force = event.force
-	-- debug_print( "force created ", force.name )
+	debug_print( "force created ", force.name )
 	
 	init_force(force)
 end
@@ -2039,6 +2040,9 @@ local function on_creation( event )
 		local suffix = string.sub(ent_name,16,19)
 		local level = suffix_to_level(suffix)
 		local force_mem = global.force_mem[ent.force.name]
+		-- if ent.force.name = 'neutral' then force_mem = global.force_mem['player'] end
+		-- this is how you would fix the neutral chest bug, see issue 22, however i cant find
+		-- that setting to test it so im not exactly sure whats up
 		local trader = { entity=ent, sell_or_buy = sell_or_buy, type = type }
 		init_trader(trader,level)
 		
@@ -2050,7 +2054,7 @@ local function on_creation( event )
 		else
 			if type == trader_type.item then
 				trader.orders = {
-					{name = "coal", count = 0, price = global.prices.coal.current },
+					{name = "coal", count = 0, price = global.prices["coal"].current },
 				}
 			elseif type == trader_type.fluid then
 				trader.orders = {
@@ -2468,7 +2472,7 @@ local function on_gui_click(event)
 		-- update_menu_trader(player,player_mem,false)
 		update_guis_force(force,false)
 		
-	elseif event_name == "but_blkmkt_gen_sell_all"then
+	elseif event_name == "but_blkmkt_gen_sell_now"then
 		local force_mem = global.force_mem[force.name]
 		local money = 0
 		
@@ -2490,7 +2494,7 @@ local function on_gui_click(event)
 			-- update_menu_trader(player,player_mem,true)
 		end
 		
-	elseif event_name == "but_blkmkt_gen_buy_all"then
+	elseif event_name == "but_blkmkt_gen_buy_now"then
 		local force_mem = global.force_mem[force.name]
 		local money = 0
 		

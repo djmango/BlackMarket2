@@ -1,4 +1,12 @@
 ---------------------------------------------------------------------------------------------------
+Version: 2.0.4
+Date: 2020-10-11
+  Changes:
+    - Fixed icon cutoff, thanks @rookhaven
+    - Fixed coal buy chest bug
+    - Fixed tax settings not updating
+    - Fixed buy/sell all buttons
+---------------------------------------------------------------------------------------------------
 Version: 2.0.3
 Date: 2020-09-21
   Changes:

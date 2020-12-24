@@ -22,12 +22,19 @@ data:extend({
         order = "aac"
     },
     {
+        type = "bool-setting",
+        name = "BM2-default_auto",
+        setting_type = "runtime-global",
+        default_value = false,
+        order = "aad"
+    },
+    {
         type = "double-setting",
         name = "BM2-price_multiplyer",
         setting_type = "runtime-global",
         minimum_value = 0,
         default_value = 1,
-        order = "aad"
+        order = "aae"
     },
     -- Basic prices
     {

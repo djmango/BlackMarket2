@@ -5,7 +5,7 @@ prices_file = debug_mod_name .. "-prices.csv"
 specials_file = debug_mod_name .. "-specials.txt"
 require("utils")
 require("config")
-require("mod-gui")
+mod_gui = require("mod-gui")
 
 configure_settings()
 
@@ -2054,7 +2054,7 @@ local function on_creation( event )
 		else
 			if type == trader_type.item then
 				trader.orders = {
-					{name = "coal", count = 0, price = global.prices["coal"].current },
+					{name = "ucoin", count = 0, price = global.prices["ucoin"].current },
 				}
 			elseif type == trader_type.fluid then
 				trader.orders = {

@@ -1,4 +1,11 @@
 ---------------------------------------------------------------------------------------------------
+Version: 2.0.5
+Date: 2020-12-24
+  Changes:
+    - Updated for 1.1, thanks @kittenface
+    - Added setting to disable/enable 'automatic' setting being on by default on buy/sell entities
+    - Fixed similar coal buy chest bug
+---------------------------------------------------------------------------------------------------
 Version: 2.0.4
 Date: 2020-10-11
   Changes:

@@ -1,3 +1,3 @@
 #!/bin/sh
 
-ln -sf /home/djmango/github/BlackMarket2 /home/djmango/.factorio/mods/BlackMarket2_1.2.7
+ln -sf ~/github/BlackMarket2 ~/.factorio/mods/BlackMarket2_2.0.5

@@ -51,7 +51,7 @@ function configure_settings()
 
 	periods = {0,1,2,3,4,6,8,12,24} -- available periods in hours
 	default_n_period = 2 -- default period of a new trading chest
-	default_auto = true -- default automatic mode
+	default_auto = settings.global["BM2-default_auto"].value -- default automatic mode
 
 	thousands_separator = ","
 end

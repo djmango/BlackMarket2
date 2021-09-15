@@ -788,9 +788,8 @@ local function compute_recipe_purity(recipe_name, item_name)
 end
 
 local function compute_item_cost(item_name, loops, recipes_used)
-	if loops == nil then loops = 0 end -- my lazy solution to avoid endless recursion
-	if recipes_used == nil then recipes_used = {} end -- same as above
-	loops = loops + 1
+	loops = (loops or 0) + 1
+	recipes_used = recipes_used or {}
 
 	-- if this is an uncraftable item then we just assume its a raw/unknown
 	if global.item_recipes[item_name] == nil or loops > recipe_depth_maximum then

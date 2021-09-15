@@ -2,6 +2,7 @@ debug_status = 0
 debug_mod_name = "BlackMarket2"
 debug_file = debug_mod_name .. "-debug.txt"
 prices_file = debug_mod_name .. "-prices.csv"
+price_log = debug_mod_name .. "-unknownPrices.log"
 specials_file = debug_mod_name .. "-specials.txt"
 require("utils")
 require("config")
@@ -764,7 +765,7 @@ local function compute_recipe_purity(recipe_name, item_name)
 	local ingredient_amount = 0 -- the stuff we are actually trying to solve for
 
 	table.for_each(recipe.products, function(product)
-		-- here we catogorize each of the recipes products into product or other
+		-- here we categorize each of the recipes products into product or other
 		if product.name == item_name then
 			if product.amount ~= nil then
 				ingredient_amount = ingredient_amount + product.amount
@@ -787,41 +788,54 @@ local function compute_recipe_purity(recipe_name, item_name)
 	return purity
 end
 
+---convenience function that sets an item's price to the default and optionally logs it
+---@param item_name string
+---@param reason string @*optional*
+---@return table the price entry that was set for this item
+local function item_cost_unknown(item_name, reason)
+	if unknown_price_reason_logging == true and reason ~= nil then
+		pcall(game.write_file,price_log, "< "..item_name.." > "..reason.."\n", true)
+	end
+	global.prices[item_name] = {overall = unknown_price, tech = 0, ingrs = 0, energy = 0}
+	return global.prices[item_name]
+end
+
 local function compute_item_cost(item_name, loops, recipes_used)
-	if loops == nil then loops = 0 end -- my lazy solution to avoid endless recursion
-	if recipes_used == nil then recipes_used = {} end -- same as above
-	loops = loops + 1
+	loops = (loops or 0) + 1
+	recipes_used = recipes_used or {}
 
 	-- if this is an uncraftable item then we just assume its a raw/unknown
-	if global.item_recipes[item_name] == nil or loops > recipe_depth_maximum then global.prices[item_name] = {overall = unknown_price, tech = 0, ingrs = 0, energy = 0} return global.prices[item_name] end
+	if global.item_recipes[item_name] == nil then
+		return item_cost_unknown(item_name,"no recipe")
+	elseif loops > recipe_depth_maximum then
+		return item_cost_unknown(item_name, "recipe_depth_maximum exceeded")
+	end
 	
 	-- grab the item's recipe
 	local recipe_name = global.item_recipes[item_name].recipe
 	local recipe = game.forces.player.recipes[recipe_name]
 
-	for _, recipe_used in pairs(recipes_used) do if recipe_used == recipe_name then 
-		global.prices[item_name] = {overall = unknown_price, tech = 0, ingrs = 0, energy = 0} return global.prices[item_name] end end
+	for _, recipe_used in pairs(recipes_used) do
+		if recipe_used == recipe_name then
+			return item_cost_unknown(item_name, "recipe_name in recipes_used")
+		end
+	end
 	recipes_used[#recipes_used+1] = recipe_name
 
-	-- iterate thru ingredients and make sure they have a set cost
+	-- iterate through ingredients and make sure they have a set cost
 	for _, ingredient in pairs(recipe.ingredients) do
 		if global.prices[ingredient.name] ~= nil then -- do we know the price already?
-			ingredient_cost = global.prices[ingredient.name].overall
+			-- we can move on to the next ingredient
 			
 		elseif global.item_recipes[ingredient.name] ~= nil and global.item_recipes[ingredient.name].recipe ~= nil then -- if not and we have a recipe for the ingredient then loop through and calculate it based on ingredients
 			compute_item_cost(ingredient.name, loops, recipes_used)
 
 		else -- unknown raw mats
-			global.prices[item_name] = {
-				overall = unknown_price, -- this should really only happen if a mod introduces a new raw mat,
-				tech = 0,
-				ingrs = 0,
-				energy = 0
-			}
+			item_cost_unknown(ingredient.name, "ingredient has no price or recipe")
 		end
 	end
 
-	-- okay we now know that the price of the igrs are in the prices table, so now we can just add em up
+	-- okay we now know that the price of the ingredients are in the prices table, so now we can just add em up
 	local ingredients_cost = 0
 	for _, ingredient in pairs(recipe.ingredients) do
 		if global.prices[ingredient.name] == nil then compute_item_cost(ingredient.name, loops, recipes_used) end
@@ -853,13 +867,9 @@ local function compute_item_cost(item_name, loops, recipes_used)
 	local energy_cost = recipe.energy * energy_cost
 
 	-- enter cost of ingredient
-	if ingredient_amount == 0 then
-		global.prices[item_name] = { -- sometimes, probability can be 0, leading to total amount = 0
-			overall = unknown_price,
-			tech = 0,
-			ingrs = 0,
-			energy = 0
-		}
+	if product_amount == 0 then
+		-- sometimes, probability can be 0, leading to total amount = 0
+		item_cost_unknown(item_name, "product_amount == 0")
 	else
 		local tech_total = math.floor(tech_cost)
 		local ingrs_total = math.floor(ingredients_cost / product_amount+0.5)
@@ -884,7 +894,7 @@ local function update_objects_prices()
 	for _, recipe in pairs(game.forces.player.recipes) do
 		for _, product in pairs(recipe.products) do
 
-			if game.forces.player.recipes[product.name] ~= nil then -- if we can find a direct recipe match for the item then we dont need to do fancy match
+			if game.forces.player.recipes[product.name] ~= nil then -- if we can find a direct recipe match for the item then we don't need to do fancy match
 				item_recipe = {name = product.name, recipe = product.name}
 			else -- recipe matching, the filters avoid recipes that cause issues for the cost computer
 				item_recipe = global.item_recipes[product.name] or {name = product.name, recipe = nil}
@@ -895,25 +905,25 @@ local function update_objects_prices()
 					
 					local new_purity = compute_recipe_purity(recipe.name, product.name)
 
-					-- recipe filters here, the recipes we dont want
+					-- recipe filters here, the recipes we don't want
 
 					-- such as fluid barreling recipes
 					local isBarrel = false
 					if string.match(recipe.name, "barrel") and not string.match(product.name, "barrel") then
 						isBarrel = true end
 
-					-- or recipes with catylists
-					local hasCatylist = false
+					-- or recipes with catalysts
+					local hasCatalyst = false
 					table.for_each(game.forces.player.recipes[recipe.name].products, function(product)
 						-- if the recipe just straight up tells us
-						if product.catalyst_amount ~= nil and product.catalyst_amount > 0 then hasCatylist = true
+						if product.catalyst_amount ~= nil and product.catalyst_amount > 0 then hasCatalyst = true
 						-- otherwise check for name matches
-						else table.for_each(game.forces.player.recipes[recipe.name].ingredients, function(ingr) if ingr.name == product.name then hasCatylist = true end end)
+						else table.for_each(game.forces.player.recipes[recipe.name].ingredients, function(ingr) if ingr.name == product.name then hasCatalyst = true end end)
 						end
 					end)
 
-					if new_purity > old_purity and isBarrel == false and hasCatylist == false then item_recipe.recipe = recipe.name end -- our new king passed our filters!
-				else item_recipe.recipe = recipe.name end -- if there is no prexisting recipe our new one is king
+					if new_purity > old_purity and isBarrel == false and hasCatalyst == false then item_recipe.recipe = recipe.name end -- our new king passed our filters!
+				else item_recipe.recipe = recipe.name end -- if there is no preexisting recipe our new one is king
 			end
 			
 			global.item_recipes[product.name] = item_recipe
@@ -933,7 +943,7 @@ local function update_objects_prices()
 		if price.overall == nil then price.overall = unknown_price end
 		if price.overall == math.huge then price.overall = unknown_price end
 
-		-- actuall dynamic stuff
+		-- actually dynamic stuff
 		if old_price then
 			price.dynamic = old_price.dynamic or 1
 			price.previous = old_price.previous or price.overall
@@ -1117,7 +1127,7 @@ local function list_groups()
 	debug_print("list_groups")
 	
 	for name, group in pairs(global.groups) do
-		debug_print("group:", name, " childs=", #group.group.subgroups)
+		debug_print("group:", name, " children=", #group.group.subgroups)
 		for _, subgroup in pairs(group.group.subgroups) do
 			debug_print("-> subgroup:", subgroup.name)
 		end
@@ -1208,7 +1218,7 @@ local function init_trader( trader, level )
 	trader.orders_tot = 0 -- total of the purchase list, without taxes
 	trader.orders = {} -- purchase orders, list of {name, count}
 	trader.sold_name = nil -- name of the last sold item
-	-- trader.price = nil -- price of the main object sold (1 item, fuild or energy)
+	-- trader.price = nil -- price of the main object sold (1 item, fluid or energy)
 	
 	trader.editer = nil -- player who is currently editing
 	
@@ -1851,8 +1861,8 @@ end
 --------------------------------------------------------------------------------------
 local function on_init()
 	-- called once, the first time the mod is loaded on a game (new or existing game)
-	gui.init()
-	gui.build_lookup_tables()
+	---gui.init()
+	---gui.build_lookup_tables()
 	init_globals()
 	init_forces()
 	init_players()
@@ -1860,10 +1870,10 @@ end
 
 script.on_init(on_init)
 
-local function on_load()
-	gui.build_lookup_tables()
-end
-script.on_load(on_load)
+---local function on_load()
+---	gui.build_lookup_tables()
+---end
+---script.on_load(on_load)
 
 --------------------------------------------------------------------------------------
 local function on_configuration_changed(data)
@@ -1877,8 +1887,8 @@ local function on_configuration_changed(data)
 		init_tax_rates()
 		
 		local changes = data.mod_changes[debug_mod_name]
-		gui.init()
-		gui.check_filter_validity()
+		---gui.init()
+		---gui.check_filter_validity()
 		
 		close_guis()
 

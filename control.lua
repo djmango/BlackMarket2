@@ -793,14 +793,21 @@ local function compute_item_cost(item_name, loops, recipes_used)
 	loops = loops + 1
 
 	-- if this is an uncraftable item then we just assume its a raw/unknown
-	if global.item_recipes[item_name] == nil or loops > recipe_depth_maximum then global.prices[item_name] = {overall = unknown_price, tech = 0, ingrs = 0, energy = 0} return global.prices[item_name] end
+	if global.item_recipes[item_name] == nil or loops > recipe_depth_maximum then
+		global.prices[item_name] = {overall = unknown_price, tech = 0, ingrs = 0, energy = 0}
+		return global.prices[item_name]
+	end
 	
 	-- grab the item's recipe
 	local recipe_name = global.item_recipes[item_name].recipe
 	local recipe = game.forces.player.recipes[recipe_name]
 
-	for _, recipe_used in pairs(recipes_used) do if recipe_used == recipe_name then 
-		global.prices[item_name] = {overall = unknown_price, tech = 0, ingrs = 0, energy = 0} return global.prices[item_name] end end
+	for _, recipe_used in pairs(recipes_used) do
+		if recipe_used == recipe_name then
+			global.prices[item_name] = {overall = unknown_price, tech = 0, ingrs = 0, energy = 0}
+			return global.prices[item_name]
+		end
+	end
 	recipes_used[#recipes_used+1] = recipe_name
 
 	-- iterate through ingredients and make sure they have a set cost

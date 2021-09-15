@@ -835,7 +835,7 @@ local function compute_item_cost(item_name, loops, recipes_used)
 		end
 	end
 
-	-- okay we now know that the price of the ingrs are in the prices table, so now we can just add em up
+	-- okay we now know that the price of the ingredients are in the prices table, so now we can just add em up
 	local ingredients_cost = 0
 	for _, ingredient in pairs(recipe.ingredients) do
 		if global.prices[ingredient.name] == nil then compute_item_cost(ingredient.name, loops, recipes_used) end

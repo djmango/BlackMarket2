@@ -1,3 +1,3 @@
 #!/bin/sh
 
-ln -sf ~/github/BlackMarket2 ~/.factorio/mods/BlackMarket2_2.0.5
+ln -sf "$(readlink -f .)" ~/.factorio/mods/BlackMarket2_2.0.7

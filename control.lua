@@ -1858,8 +1858,8 @@ end
 --------------------------------------------------------------------------------------
 local function on_init()
 	-- called once, the first time the mod is loaded on a game (new or existing game)
-	gui.init()
-	gui.build_lookup_tables()
+	---gui.init()
+	---gui.build_lookup_tables()
 	init_globals()
 	init_forces()
 	init_players()
@@ -1867,10 +1867,10 @@ end
 
 script.on_init(on_init)
 
-local function on_load()
-	gui.build_lookup_tables()
-end
-script.on_load(on_load)
+---local function on_load()
+---	gui.build_lookup_tables()
+---end
+---script.on_load(on_load)
 
 --------------------------------------------------------------------------------------
 local function on_configuration_changed(data)
@@ -1884,8 +1884,8 @@ local function on_configuration_changed(data)
 		init_tax_rates()
 		
 		local changes = data.mod_changes[debug_mod_name]
-		gui.init()
-		gui.check_filter_validity()
+		---gui.init()
+		---gui.check_filter_validity()
 		
 		close_guis()
 

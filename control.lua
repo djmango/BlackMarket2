@@ -764,7 +764,7 @@ local function compute_recipe_purity(recipe_name, item_name)
 	local ingredient_amount = 0 -- the stuff we are actually trying to solve for
 
 	table.for_each(recipe.products, function(product)
-		-- here we catogorize each of the recipes products into product or other
+		-- here we categorize each of the recipes products into product or other
 		if product.name == item_name then
 			if product.amount ~= nil then
 				ingredient_amount = ingredient_amount + product.amount
@@ -803,7 +803,7 @@ local function compute_item_cost(item_name, loops, recipes_used)
 		global.prices[item_name] = {overall = unknown_price, tech = 0, ingrs = 0, energy = 0} return global.prices[item_name] end end
 	recipes_used[#recipes_used+1] = recipe_name
 
-	-- iterate thru ingredients and make sure they have a set cost
+	-- iterate through ingredients and make sure they have a set cost
 	for _, ingredient in pairs(recipe.ingredients) do
 		if global.prices[ingredient.name] ~= nil then -- do we know the price already?
 			ingredient_cost = global.prices[ingredient.name].overall
@@ -821,7 +821,7 @@ local function compute_item_cost(item_name, loops, recipes_used)
 		end
 	end
 
-	-- okay we now know that the price of the igrs are in the prices table, so now we can just add em up
+	-- okay we now know that the price of the ingrs are in the prices table, so now we can just add em up
 	local ingredients_cost = 0
 	for _, ingredient in pairs(recipe.ingredients) do
 		if global.prices[ingredient.name] == nil then compute_item_cost(ingredient.name, loops, recipes_used) end
@@ -884,7 +884,7 @@ local function update_objects_prices()
 	for _, recipe in pairs(game.forces.player.recipes) do
 		for _, product in pairs(recipe.products) do
 
-			if game.forces.player.recipes[product.name] ~= nil then -- if we can find a direct recipe match for the item then we dont need to do fancy match
+			if game.forces.player.recipes[product.name] ~= nil then -- if we can find a direct recipe match for the item then we don't need to do fancy match
 				item_recipe = {name = product.name, recipe = product.name}
 			else -- recipe matching, the filters avoid recipes that cause issues for the cost computer
 				item_recipe = global.item_recipes[product.name] or {name = product.name, recipe = nil}
@@ -895,25 +895,25 @@ local function update_objects_prices()
 					
 					local new_purity = compute_recipe_purity(recipe.name, product.name)
 
-					-- recipe filters here, the recipes we dont want
+					-- recipe filters here, the recipes we don't want
 
 					-- such as fluid barreling recipes
 					local isBarrel = false
 					if string.match(recipe.name, "barrel") and not string.match(product.name, "barrel") then
 						isBarrel = true end
 
-					-- or recipes with catylists
-					local hasCatylist = false
+					-- or recipes with catalysts
+					local hasCatalyst = false
 					table.for_each(game.forces.player.recipes[recipe.name].products, function(product)
 						-- if the recipe just straight up tells us
-						if product.catalyst_amount ~= nil and product.catalyst_amount > 0 then hasCatylist = true
+						if product.catalyst_amount ~= nil and product.catalyst_amount > 0 then hasCatalyst = true
 						-- otherwise check for name matches
-						else table.for_each(game.forces.player.recipes[recipe.name].ingredients, function(ingr) if ingr.name == product.name then hasCatylist = true end end)
+						else table.for_each(game.forces.player.recipes[recipe.name].ingredients, function(ingr) if ingr.name == product.name then hasCatalyst = true end end)
 						end
 					end)
 
-					if new_purity > old_purity and isBarrel == false and hasCatylist == false then item_recipe.recipe = recipe.name end -- our new king passed our filters!
-				else item_recipe.recipe = recipe.name end -- if there is no prexisting recipe our new one is king
+					if new_purity > old_purity and isBarrel == false and hasCatalyst == false then item_recipe.recipe = recipe.name end -- our new king passed our filters!
+				else item_recipe.recipe = recipe.name end -- if there is no preexisting recipe our new one is king
 			end
 			
 			global.item_recipes[product.name] = item_recipe
@@ -933,7 +933,7 @@ local function update_objects_prices()
 		if price.overall == nil then price.overall = unknown_price end
 		if price.overall == math.huge then price.overall = unknown_price end
 
-		-- actuall dynamic stuff
+		-- actually dynamic stuff
 		if old_price then
 			price.dynamic = old_price.dynamic or 1
 			price.previous = old_price.previous or price.overall
@@ -1117,7 +1117,7 @@ local function list_groups()
 	debug_print("list_groups")
 	
 	for name, group in pairs(global.groups) do
-		debug_print("group:", name, " childs=", #group.group.subgroups)
+		debug_print("group:", name, " children=", #group.group.subgroups)
 		for _, subgroup in pairs(group.group.subgroups) do
 			debug_print("-> subgroup:", subgroup.name)
 		end
@@ -1208,7 +1208,7 @@ local function init_trader( trader, level )
 	trader.orders_tot = 0 -- total of the purchase list, without taxes
 	trader.orders = {} -- purchase orders, list of {name, count}
 	trader.sold_name = nil -- name of the last sold item
-	-- trader.price = nil -- price of the main object sold (1 item, fuild or energy)
+	-- trader.price = nil -- price of the main object sold (1 item, fluid or energy)
 	
 	trader.editer = nil -- player who is currently editing
 	

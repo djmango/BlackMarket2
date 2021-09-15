@@ -287,5 +287,12 @@ data:extend({
         minimum_value = 1,
         default_value = 10,
         order = "ga"
+    },
+    {
+        type = "bool-setting",
+        name = "BM2-unknown_price_reason_logging",
+        setting_type = "runtime-global",
+        default_value = false,
+        order = "gb"
     }
 })

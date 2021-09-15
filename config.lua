@@ -27,6 +27,8 @@ function configure_settings()
 		["steam"] = settings.global["BM2-steam"].value,
 	}
 
+	unknown_price_reason_logging = settings.global["BM2-unknown_price_reason_logging"]
+
 	recipe_depth_maximum = settings.global["BM2-recipe_depth_maximum"].value -- the maximum depth the recipe search can go
 	only_items_researched = settings.global["BM2-only_items_researched"].value -- if only want researched items enabled or not
 	tax_enabled = settings.global["BM2-enable_tax"].value -- if taxes enabled or not

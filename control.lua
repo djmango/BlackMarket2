@@ -2,6 +2,7 @@ debug_status = 0
 debug_mod_name = "BlackMarket2"
 debug_file = debug_mod_name .. "-debug.txt"
 prices_file = debug_mod_name .. "-prices.csv"
+price_log = debug_mod_name .. "-unknownPrices.log"
 specials_file = debug_mod_name .. "-specials.txt"
 require("utils")
 require("config")
@@ -787,14 +788,27 @@ local function compute_recipe_purity(recipe_name, item_name)
 	return purity
 end
 
+---convenience function that sets an item's price to the default and optionally logs it
+---@param item_name string
+---@param reason string @*optional*
+---@return table the price entry that was set for this item
+local function item_cost_unknown(item_name, reason)
+	if unknown_price_reason_logging == true and reason ~= nil then
+		pcall(game.write_file,price_log, "< "..item_name.." > "..reason.."\n", true)
+	end
+	global.prices[item_name] = {overall = unknown_price, tech = 0, ingrs = 0, energy = 0}
+	return global.prices[item_name]
+end
+
 local function compute_item_cost(item_name, loops, recipes_used)
 	loops = (loops or 0) + 1
 	recipes_used = recipes_used or {}
 
 	-- if this is an uncraftable item then we just assume its a raw/unknown
-	if global.item_recipes[item_name] == nil or loops > recipe_depth_maximum then
-		global.prices[item_name] = {overall = unknown_price, tech = 0, ingrs = 0, energy = 0}
-		return global.prices[item_name]
+	if global.item_recipes[item_name] == nil then
+		return item_cost_unknown(item_name,"no recipe")
+	elseif loops > recipe_depth_maximum then
+		return item_cost_unknown(item_name, "recipe_depth_maximum exceeded")
 	end
 	
 	-- grab the item's recipe
@@ -803,8 +817,7 @@ local function compute_item_cost(item_name, loops, recipes_used)
 
 	for _, recipe_used in pairs(recipes_used) do
 		if recipe_used == recipe_name then
-			global.prices[item_name] = {overall = unknown_price, tech = 0, ingrs = 0, energy = 0}
-			return global.prices[item_name]
+			return item_cost_unknown(item_name, "recipe_name in recipes_used")
 		end
 	end
 	recipes_used[#recipes_used+1] = recipe_name
@@ -818,12 +831,7 @@ local function compute_item_cost(item_name, loops, recipes_used)
 			compute_item_cost(ingredient.name, loops, recipes_used)
 
 		else -- unknown raw mats
-			global.prices[item_name] = {
-				overall = unknown_price, -- this should really only happen if a mod introduces a new raw mat,
-				tech = 0,
-				ingrs = 0,
-				energy = 0
-			}
+			item_cost_unknown(ingredient.name, "ingredient has no price or recipe")
 		end
 	end
 
@@ -860,12 +868,8 @@ local function compute_item_cost(item_name, loops, recipes_used)
 
 	-- enter cost of ingredient
 	if ingredient_amount == 0 then
-		global.prices[item_name] = { -- sometimes, probability can be 0, leading to total amount = 0
-			overall = unknown_price,
-			tech = 0,
-			ingrs = 0,
-			energy = 0
-		}
+		-- sometimes, probability can be 0, leading to total amount = 0
+		item_cost_unknown(item_name, "ingredient_amount == 0")
 	else
 		local tech_total = math.floor(tech_cost)
 		local ingrs_total = math.floor(ingredients_cost / product_amount+0.5)

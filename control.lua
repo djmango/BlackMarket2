@@ -825,7 +825,7 @@ local function compute_item_cost(item_name, loops, recipes_used)
 	-- iterate through ingredients and make sure they have a set cost
 	for _, ingredient in pairs(recipe.ingredients) do
 		if global.prices[ingredient.name] ~= nil then -- do we know the price already?
-			ingredient_cost = global.prices[ingredient.name].overall
+			-- we can move on to the next ingredient
 			
 		elseif global.item_recipes[ingredient.name] ~= nil and global.item_recipes[ingredient.name].recipe ~= nil then -- if not and we have a recipe for the ingredient then loop through and calculate it based on ingredients
 			compute_item_cost(ingredient.name, loops, recipes_used)
@@ -867,9 +867,9 @@ local function compute_item_cost(item_name, loops, recipes_used)
 	local energy_cost = recipe.energy * energy_cost
 
 	-- enter cost of ingredient
-	if ingredient_amount == 0 then
+	if product_amount == 0 then
 		-- sometimes, probability can be 0, leading to total amount = 0
-		item_cost_unknown(item_name, "ingredient_amount == 0")
+		item_cost_unknown(item_name, "product_amount == 0")
 	else
 		local tech_total = math.floor(tech_cost)
 		local ingrs_total = math.floor(ingredients_cost / product_amount+0.5)

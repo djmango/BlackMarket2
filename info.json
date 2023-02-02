@@ -1,6 +1,6 @@
 {
 	"name": "BlackMarket2",
-	"version": "2.1.0",
+	"version": "2.1.1",
 	"title": "Black Market 2",
 	"author": "djmango",
 	"description": "Sell and buy items/fluids/energy on the universal black market using trading chests/tanks/accumulators, choosing the frequency of exchanges and related fees. You can now sell your overproduction and buy things that you don't want to craft by yourself. You can also use these trading units as a paying shipment system.",
@@ -9,7 +9,6 @@
 	"factorio_version":"1.1",
 	"dependencies": [
 		"base >= 1.0.0",
-		"flib >= 0.8.0",
-		"! deadlock-beltboxes-loaders"
+		"flib >= 0.8.0"
 	]
 }

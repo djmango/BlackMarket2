@@ -2197,7 +2197,22 @@ local function on_tick(event)
 						end
 						
 						local force_mem = global.force_mem[player.force.name]
-						local prefix = string.sub(opened.name,1,15)
+						local prefix
+
+						-- try-catch add start
+						local success_tc, result_tc = pcall(function()
+							-- get "name"
+							prefix = string.sub(opened.name,1,15)
+						end)
+
+						if success_tc then
+							-- no error
+							print("success")
+						else
+							-- with error
+							prefix = "opened.name,1,15"
+						end
+						-- try-catch add end
 						
 						if prefix == "trader-chst-sel" or prefix == "trader-tank-sel" or prefix == "trader-accu-sel" then
 							build_menu_objects(player,false)

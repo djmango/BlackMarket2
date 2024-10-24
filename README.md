@@ -26,7 +26,15 @@ Sell and buy items/fluids/energy on the universal black market using trading che
 * Add Combinator read market prices
 * Add Transaction logs
 * Add stats Graph / income vs. expenses
-  
+* Add support for factorio base game and space age DLC
+* Support selling items with higher quality for higher price.
+  * multiplyer are below:
+    * normal -> 1x
+    * uncommon -> 2.1x
+    * rare -> 4.8x
+    * epic -> 10.5x
+    * legendary -> 35x
+* TODO: Adds support to buy items with higher quality (2.0) 
 ## Contributors
 * [Contributors graph](https://github.com/djmango/BlackMarket2/graphs/contributors)
 * [@BinbinHfr](https://mods.factorio.com/user/binbinhfr), original mod creator

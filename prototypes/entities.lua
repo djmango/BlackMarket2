@@ -217,14 +217,14 @@ local function add_chests(level)
 	table.insert(names_pastable,name_sell)
 	local inventory_size = level == 1 and 16 or (50 + 100 * (level - 2)) -- vanilla 48
 	--------------------------------------------------------------------------------------
-	local ingredients = {{"wooden-chest", 1}}
+	local ingredients = {{type="item", name="wooden-chest", amount=1}}
 	local proto = "wooden-chest"
 	local enabled = true
 	
 	if level > 1 then
 		ingredients = {
-			{"steel-chest", level},
-			{"electronic-circuit", 2 * level}
+			{type="item", name="steel-chest", amount=level},
+			{type="item", name="electronic-circuit", amount=2 * level}
 		}
 		proto = "steel-chest"
 		enabled = false
@@ -263,7 +263,7 @@ local function add_chests(level)
 				enabled = enabled ,
 				energy_required = 1,
 				ingredients = ingredients,
-				result = name_sell,
+				results = {{type="item", name=name_sell, amount=1}},
 			},
 		}
 	)
@@ -303,7 +303,7 @@ local function add_chests(level)
 				enabled = false,
 				energy_required = 1,
 				ingredients = ingredients,
-				result = name_buy,
+				results = {{type="item", name=name_buy, amount=1}},
 			},
 		}
 	)
@@ -352,7 +352,7 @@ local function add_tanks(level)
 	--------------------------------------------------------------------------------------
 	local tank_sell = dupli_proto( "storage-tank", "storage-tank", name_sell )
 	tank_sell.pictures.picture.sheets[1].filename = "__BlackMarket2__/graphics/trading-tank-sell.png"
-	tank_sell.fluid_box.base_area = tank_max/10
+	tank_sell.fluid_box.volume = tank_max
 
 	data:extend(
 		{
@@ -375,10 +375,10 @@ local function add_tanks(level)
 				enabled = false,
 				energy_required = 4,
 				ingredients = {
-					{"storage-tank", level},
-					{"electronic-circuit", 2*level},
+					{type="item", name="storage-tank", amount=level},
+					{type="item", name="electronic-circuit", amount=2*level},
 				},
-				result = name_sell,
+				results = {{type="item", name=name_sell, amount=1}},
 			},
 		}
 	)
@@ -386,7 +386,7 @@ local function add_tanks(level)
 	--------------------------------------------------------------------------------------
 	local tank_buy = dupli_proto( "storage-tank", "storage-tank", name_buy )
 	tank_buy.pictures.picture.sheets[1].filename = "__BlackMarket2__/graphics/trading-tank-buy.png"
-	tank_buy.fluid_box.base_area = tank_max/10 
+	tank_buy.fluid_box.volume = tank_max
 
 	data:extend(
 		{
@@ -409,10 +409,10 @@ local function add_tanks(level)
 				enabled = false,
 				energy_required = 4,
 				ingredients = {
-					{"storage-tank", level},
-					{"electronic-circuit", 2*level},
+					{type="item", name="storage-tank", amount=level},
+					{type="item", name="electronic-circuit", amount=2*level},
 				},
-				result = name_buy,
+				results = {{type="item", name=name_buy, amount=1}},
 			},
 		}
 	)
@@ -466,9 +466,9 @@ local function add_accus(level)
 	accu_sell.energy_source.buffer_capacity = accu_max .. "MJ"
 	accu_sell.energy_source.input_flow_limit = flow_limit .. "MW"
 	accu_sell.energy_source.output_flow_limit = "0MW"
-	accu_sell.picture.filename = "__BlackMarket2__/graphics/trading-accumulator-sell.png"
-	accu_sell.charge_animation.filename = "__BlackMarket2__/graphics/trading-accumulator-sell-charge.png"
-	accu_sell.discharge_animation.filename = "__BlackMarket2__/graphics/trading-accumulator-sell-discharge.png"
+	accu_sell.chargable_graphics.picture.filename = "__BlackMarket2__/graphics/trading-accumulator-sell.png"
+	accu_sell.chargable_graphics.charge_animation.filename = "__BlackMarket2__/graphics/trading-accumulator-sell-charge.png"
+	accu_sell.chargable_graphics.discharge_animation.filename = "__BlackMarket2__/graphics/trading-accumulator-sell-discharge.png"
 
 	data:extend(
 		{
@@ -491,10 +491,10 @@ local function add_accus(level)
 				enabled = false,
 				energy_required = 20,
 				ingredients = {
-					{"accumulator", 2+(level-1)*2},
-					{"electronic-circuit", 2*level},
+					{type="item", name="accumulator", amount=2+(level-1)*2},
+					{type="item", name="electronic-circuit", amount=2*level},
 				},
-				result = name_sell,
+				results = {{type="item", name=name_sell, amount=1}},
 			},
 		}
 	)
@@ -504,9 +504,9 @@ local function add_accus(level)
 	accu_buy.energy_source.buffer_capacity = accu_max .. "MJ"
 	accu_buy.energy_source.input_flow_limit = "0MW"
 	accu_buy.energy_source.output_flow_limit = flow_limit .. "MW"
-	accu_buy.picture.filename = "__BlackMarket2__/graphics/trading-accumulator-buy.png"
-	accu_buy.charge_animation.filename = "__BlackMarket2__/graphics/trading-accumulator-buy-charge.png"
-	accu_buy.discharge_animation.filename = "__BlackMarket2__/graphics/trading-accumulator-buy-discharge.png"
+	accu_buy.chargable_graphics.picture.filename = "__BlackMarket2__/graphics/trading-accumulator-buy.png"
+	accu_buy.chargable_graphics.charge_animation.filename = "__BlackMarket2__/graphics/trading-accumulator-buy-charge.png"
+	accu_buy.chargable_graphics.discharge_animation.filename = "__BlackMarket2__/graphics/trading-accumulator-buy-discharge.png"
 
 	data:extend(
 		{
@@ -529,10 +529,10 @@ local function add_accus(level)
 				enabled = false,
 				energy_required = 20,
 				ingredients = {
-					{"accumulator", 2+(level-1)*2},
-					{"electronic-circuit", 2*level},
+					{type="item", name="accumulator", amount=2+(level-1)*2},
+					{type="item", name="electronic-circuit", amount=2*level},
 				},
-				result = name_buy,
+				results = {{type="item", name=name_buy, amount=1}},
 			},
 		}
 	)

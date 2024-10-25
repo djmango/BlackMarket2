@@ -344,11 +344,11 @@ local function add_tanks(level)
 	table.insert(names_tanks,name_buy)
 	table.insert(names_pastable,name_sell)
 	table.insert(names_pastable,name_buy)
-	local tank_max -- vanilla 2500
-	if level == 1 then tank_max = 2500 end
-	if level == 2 then tank_max = 10000 end
-	if level == 3 then tank_max = 20000 end
-	if level == 4 then tank_max = 40000 end
+	local tank_max -- vanilla 25000
+	if level == 1 then tank_max = 25000 end
+	if level == 2 then tank_max = 100000 end
+	if level == 3 then tank_max = 200000 end
+	if level == 4 then tank_max = 400000 end
 	--------------------------------------------------------------------------------------
 	local tank_sell = dupli_proto( "storage-tank", "storage-tank", name_sell )
 	tank_sell.pictures.picture.sheets[1].filename = "__BlackMarket2__/graphics/trading-tank-sell.png"

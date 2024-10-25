@@ -794,7 +794,7 @@ end
 ---@return table the price entry that was set for this item
 local function item_cost_unknown(item_name, reason)
 	if unknown_price_reason_logging == true and reason ~= nil then
-		pcall(game.write_file,price_log, "< "..item_name.." > "..reason.."\n", true)
+		pcall(helpers.write_file,price_log, "< "..item_name.." > "..reason.."\n", true)
 	end
 	storage.prices[item_name] = {overall = unknown_price, tech = 0, ingrs = 0, energy = 0}
 	return storage.prices[item_name]
@@ -1055,11 +1055,11 @@ end
 local function export_prices()
 	-- debug_print("export_prices")
 	
-	game.remove_path(prices_file)
+	helpers.remove_path(prices_file)
 
 	local s = "object;recipe;techno;total price;tech cost;ingredients cost;energy cost;current;evolution" .. "\n"
 	
-	if pcall(game.write_file,prices_file,s,true) then
+	if pcall(helpers.write_file,prices_file,s,true) then
 		for name, price in pairs(storage.prices) do
 			local recipe_name = name
 			
@@ -1073,7 +1073,7 @@ local function export_prices()
 				s = name .. ";...;;" 
 					.. price.overall .. ";" .. price.tech .. ";" .. price.ingrs .. ";" .. price.energy .. ";" .. 0.1*math.floor(10*price.current) .. ";" .. 0.1*math.floor(10*price.evolution) .. "\n"
 			end
-			game.write_file('BM2/e.txt',s,true)
+			helpers.write_file('BM2/e.txt',s,true)
 		end
 	end
 end
@@ -1390,25 +1390,20 @@ local function sell_trader(trader,force_mem,tax_rate)
 		
 	elseif trader.type == trader_type.fluid then
 		local tank = trader.entity
-		if tank.fluidbox then
-			local box = tank.fluidbox[1]
-			if box ~= nil then
-				local name = box.name
-				local count = box.amount
-				local price = storage.prices[name]
+		local price = nil
+
+		for name, amount in pairs(tank.get_fluid_contents()) do
+			price = storage.prices[name]
+			if price ~= nil then
+				money1 = amount * price.current 
+				tax1 = money1 * tax_rate / 100
+				money = money + money1 
+				taxes = taxes + tax1
+				tank.remove_fluid({name=name,amount=amount})
 				
-				if price ~= nil then
-					money1 = count * price.current 
-					tax1 = money1 * tax_rate / 100
-					money = money + money1 
-					taxes = taxes + tax1
-					
-					tank.fluidbox[1] = nil
-					
-					update_transaction(force_mem,"fluid",name,price,-count)
-					if count ~= 0 then 
-						trader.sold_name = name
-					end
+				update_transaction(force_mem,"fluid",name,price,-amount)
+				if amount ~= 0 then 
+					trader.sold_name = name
 				end
 			end
 		end
@@ -1498,39 +1493,32 @@ local function buy_trader(trader,force_mem,tax_rate)
 	elseif trader.type == trader_type.fluid then
 		local order = trader.orders[1]
 		local tank = trader.entity
-		
-		if order and tank.fluidbox then
+
+
+		if order then
 			local name = order.name
 			local price = storage.prices[name]
-			local box = tank.fluidbox[1]
-			local name_box = name
 			local amount_box = 0
-			
-			if box == nil then
-				box = {name = name_box, amount = amount_box }
-			else
-				name_box = box.name
-				amount_box = box.amount
+
+			for fluid_name, fluid_amount in pairs(tank.get_fluid_contents()) do
+				if fluid_name == name or fluid_amount > 0.1 then
+					amount_box = amount_box + fluid_amount
+				else
+					-- clear other fluids if they are less than 0.1
+					tank.remove_fluid({name=fluid_name,amount=fluid_amount})
+				end
 			end
+
 			
-			if name_box ~= name and amount_box < 0.1 then
-				name_box = name
-				amount_box = 0
-				box = {name = name_box, amount = amount_box }
-			end
-			
-			if name_box == name and price then
+			if price then
 				local purchased = math.min(order.count,(trader.tank_max - amount_box))
-				money = purchased * price.current 
-				
-				if purchased > 0 and money <= force_mem.credits then
-					taxes = money * tax_rate / 100
-					money = money - taxes
-					force_mem.credits = force_mem.credits - money - taxes
-				
-					box.amount = box.amount + purchased
-					tank.fluidbox[1] = box
-				
+				money1 = purchased * price.current 
+				tax1 = money1 * tax_rate / 100
+				if purchased > 0 and money1+tax1 <= force_mem.credits then
+					money = money + money1 
+					taxes = taxes + tax1
+					tank.insert_fluid({name=name,amount=purchased})
+					
 					update_transaction(force_mem,"fluid",name,price,purchased)
 				end
 			end
@@ -1714,7 +1702,7 @@ end
 --------------------------------------------------------------------------------------
 local function clean_orders_and_transactions()
 	for name, force in pairs(game.forces) do
-		debug_print("name=" .. name)
+		debug_print("name=", name)
 		
 		local force_mem = storage.force_mem[name]
 		
@@ -2785,7 +2773,6 @@ function interface.reset()
 		force.reset_recipes()
 		force.reset_technologies()
 		local force_mem = storage.force_mem[force.name]
-		force_mem.credits = n
 		force_mem.pause = false 
 		force_mem.credits = 0
 		force_mem.sales = 0

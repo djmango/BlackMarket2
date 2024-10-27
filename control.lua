@@ -25,49 +25,64 @@ local trader_signals =
 
 --------------------------------------------------------------------------------------
 function format_money( n )
-	if n == nil then return( "0u" ) end
-	
-	local neg, mega
-	
-	if n > 1e12 then
-		n = math.floor(n/1e6)
-		mega = true
-	else
-		mega = false
+	if n == nil then 
+		return "0u" 
 	end
-	
+
+	local suffixes = {
+		[93] = "Tg",
+		[90] = "NVg",
+		[87] = "OVg",
+		[84] = "SpVg",
+		[81] = "SxVg",
+		[78] = "QiVg",
+		[75] = "QaVg",
+		[72] = "TVg",
+		[69] = "DVg",
+		[66] = "UVg",
+		[63] = "Vg",
+		[60] = "NmDc",
+		[57] = "OcDc",
+		[54] = "SpDc",
+		[51] = "SxDc",
+		[48] = "QiDc",
+		[45] = "QaDc",
+		[42] = "TDc",
+		[39] = "DDc",
+		[36] = "UDc",
+		[33] = "Dc",
+		[30] = "No",
+		[27] = "Oc",
+		[24] = "Sp",
+		[21] = "Sx",
+		[18] = "Qi",
+		[15] = "Qa",
+		[12] = "T",
+		[9] = "B",
+		[6] = "M",
+		[3] = "K",
+		[0] = ""
+	}
+
+	local abs_n = math.abs(n)
+	local suffix = ""
+	local factor = 1
+
+	for exp = 93, 0, -3 do
+		if abs_n >= 10^exp then
+			suffix = suffixes[exp] .. "u"
+			factor = 10^exp
+			break
+		end
+	end
+
+	local formatted_number = string.format("%.2f", n / factor)
+
 	if n < 0 then
-		n = -n
-		neg = true
-	else
-		neg = false
+		formatted_number = formatted_number
 	end
-	
-	local s = tostring(math.floor(n+0.5))
-	local s2 = ""
-	local l = string.len(s)
-	local i = l+1
-	
-	while i > 4 do
-		i = i-3	
-		s2 =  thousands_separator .. string.sub(s,i,i+2) .. s2
-	end
-	
-	if i > 1 then
-		s2 =  string.sub(s,1,i-1) .. s2
-	end
-	
-	if mega then
-		s2 = s2 .. "Mu"
-	else
-		s2 = s2 .. "u"
-	end
-	
-	if neg then
-		return( "-" .. s2 )
-	else
-		return( s2 )
-	end
+
+	return formatted_number .. suffix
 end
 
 --------------------------------------------------------------------------------------

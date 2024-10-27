@@ -465,18 +465,18 @@ local function update_menu_trader( player, player_mem, update_orders )
 				end
 				
 				if del_but then
-					gui2.add({type = "button", name = "but_blkmkt_ord_" .. string.format("%3d",n) .. name, caption = "X", style = "button_blkmkt_style"})
+					gui2.add({type = "button", name = "but_blkmkt_ord_" .. string.format("%4d",n) .. name, caption = "X", style = "button_blkmkt_style"})
 				else
 					gui2.add({type = "label", style = "label_blkmkt_style"})
 				end
 				
 				if prefix == nil then
-					gui2.add({type = "sprite-button", name = "but_blkmkt_ori_" .. string.format("%3d",n) .. name, sprite = "sprite_energy_blkmkt", style = "sprite_obj_blkmkt_style"})
+					gui2.add({type = "sprite-button", name = "but_blkmkt_ori_" .. string.format("%4d",n) .. name, sprite = "sprite_energy_blkmkt", style = "sprite_obj_blkmkt_style"})
 				else
-					gui2.add({type = "sprite-button", name = "but_blkmkt_ori_" .. string.format("%3d",n) .. name, sprite = prefix .. name, style = "sprite_obj_blkmkt_style"})
+					gui2.add({type = "sprite-button", name = "but_blkmkt_ori_" .. string.format("%4d",n) .. name, sprite = prefix .. name, style = "sprite_obj_blkmkt_style"})
 				end
 				
-				gui2.add({type = "textfield", name = "but_blkmkt_orc_" .. string.format("%3d",n) .. name, text = count, style = "textfield_blkmkt_style"})
+				gui2.add({type = "textfield", name = "but_blkmkt_orc_" .. string.format("%4d",n) .. name, text = count, style = "textfield_blkmkt_style"})
 				gui2.add({type = "label", caption = format_money(current) .. " " .. format_evolution(evol), style = "label_blkmkt_style"})
 			end
 
@@ -535,7 +535,7 @@ local function build_menu_objects(player, open_or_close, ask_sel)
 				if player_mem.group_sel_name == nil then
 					player_mem.group_sel_name = name
 				end
-				item_table.add({type = "sprite-button", name = "but_blkmkt_ilg_" .. string.format("%3d",n) .. name, sprite = "item-group/" .. name, tooltip = name, style = "sprite_group_blkmkt_style"})
+				item_table.add({type = "sprite-button", name = "but_blkmkt_ilg_" .. string.format("%4d",n) .. name, sprite = "item-group/" .. name, tooltip = name, style = "sprite_group_blkmkt_style"})
 				n=n+1
 			end
 		end
@@ -550,10 +550,10 @@ local function build_menu_objects(player, open_or_close, ask_sel)
 		
 		if ask_sel == nil or ask_sel == "item" then
 			for name, object in pairs(prototypes.get_item_filtered({})) do
-				if object.group == group and not object.hidden and n <= 999 then
+				if object.group == group and not object.hidden and n <= 9999 then
 					local price = storage.prices[name]
 					if price then
-						item_table.add({type = "sprite-button", name = "but_blkmkt_ili_" .. string.format("%3d",n) .. name, sprite = "item/" .. name, 
+						item_table.add({type = "sprite-button", name = "but_blkmkt_ili_" .. string.format("%4d",n) .. name, sprite = "item/" .. name, 
 						tooltip = {"blkmkt-gui-tt-object-price",object.localised_name,format_money(price.current),format_evolution(price.evolution)}, style = "sprite_obj_blkmkt_style"})
 						n=n+1
 					end
@@ -564,10 +564,10 @@ local function build_menu_objects(player, open_or_close, ask_sel)
 		if ask_sel == nil or ask_sel == "fluid" then
 			for name, object in pairs(prototypes.get_fluid_filtered({})) do
 				-- debug_print("build_menu_objects ", name, " ", object.group.name, " ", object.subgroup.name )
-				if object.group == group and n <= 999 then
+				if object.group == group and n <= 9999 then
 					local price = storage.prices[name]
 					if price then
-						item_table.add({type = "sprite-button", name = "but_blkmkt_ili_" .. string.format("%3d",n) .. name, sprite = "fluid/" .. name, 
+						item_table.add({type = "sprite-button", name = "but_blkmkt_ili_" .. string.format("%4d",n) .. name, sprite = "fluid/" .. name, 
 							tooltip = {"blkmkt-gui-tt-object-price",object.localised_name,format_money(price.current),format_evolution(price.evolution)}, style = "sprite_obj_blkmkt_style"})
 						n=n+1
 					end
@@ -2412,8 +2412,8 @@ local function on_gui_click(event)
 	local player_mem = storage.player_mem[player.index]
 	local event_name = event.element.name
 	local prefix = string.sub(event_name,1,15)
-	local nix = tonumber(string.sub(event_name,16,18))
-	local suffix = string.sub(event_name,19)
+	local nix = tonumber(string.sub(event_name,16,19))
+	local suffix = string.sub(event_name,20)
 	
 	if storage.prices_computed then return end
 	
@@ -2741,8 +2741,8 @@ local function on_gui_text_changed(event)
 	local player = game.players[event.player_index]
 	local event_name = event.element.name
 	local prefix = string.sub(event_name,1,15)
-	local nix = tonumber(string.sub(event_name,16,18))
-	local suffix = string.sub(event_name,19)
+	local nix = tonumber(string.sub(event_name,16,19))
+	local suffix = string.sub(event_name,20)
 
 	-- debug_print( "on_gui_text_changed ", player.name, " ", event_name )
 	

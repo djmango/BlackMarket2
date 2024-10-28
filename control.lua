@@ -15,6 +15,13 @@ local gui = require('__flib__.gui')
 
 local trader_type = { item=1, fluid=2, energy=3, "item", "fluid", "energy" }
 local energy_name = "market-energy" -- name of fake energy item
+local quality_multipliers = {
+	normal = 1,
+	uncommon = 2.1,
+	rare = 4.8, 
+	epic = 10.5,
+	legendary = 35
+}
 
 local trader_signals =
 	{
@@ -436,7 +443,9 @@ local function update_menu_trader( player, player_mem, update_orders )
 	if trader.sell_or_buy then
 		local sold_name = trader.sold_name
 		if sold_name then
+			local multiplier = 1
 			if trader.type == trader_type.item then
+				multiplier = quality_multipliers[trader.sold_quality]
 				player_mem.but_blkmkt_trader_sold.sprite = "item/" .. sold_name
 				player_mem.but_blkmkt_trader_sold.tooltip = prototypes.get_item_filtered({})[sold_name].localised_name
 			elseif trader.type == trader_type.fluid then
@@ -448,7 +457,7 @@ local function update_menu_trader( player, player_mem, update_orders )
 			end
 			local price = storage.prices[sold_name]
 			if price then
-				player_mem.lbl_blkmkt_trader_sold.caption = " " .. format_money(price.current) .. " " .. format_evolution(price.evolution)
+				player_mem.lbl_blkmkt_trader_sold.caption = " " .. format_money(price.current * multiplier) .. " " .. format_evolution(price.evolution)
 			else
 				player_mem.lbl_blkmkt_trader_sold.caption = " -"
 			end
@@ -1233,6 +1242,7 @@ local function init_trader( trader, level )
 	trader.orders_tot = 0 -- total of the purchase list, without taxes
 	trader.orders = {} -- purchase orders, list of {name, count}
 	trader.sold_name = nil -- name of the last sold item
+	trader.sold_quality = nil -- quality of the last sold item
 	-- trader.price = nil -- price of the main object sold (1 item, fluid or energy)
 	
 	trader.editer = nil -- player who is currently editing
@@ -1369,17 +1379,8 @@ local function sell_trader(trader,force_mem,tax_rate)
 		for i, item in pairs(inv.get_contents()) do
 			price = storage.prices[item.name]
 			local quality_multiplier = 1
-
-			if item.quality == "normal" then
-				quality_multiplier = 1
-			elseif item.quality == "uncommon" then
-				quality_multiplier = 2.1
-			elseif item.quality == "rare" then
-				quality_multiplier = 4.8
-			elseif item.quality == "epic" then
-				quality_multiplier = 10.5
-			elseif item.quality == "legendary" then
-				quality_multiplier = 35
+			if item.quality ~= nil then
+				quality_multiplier = quality_multipliers[item.quality]
 			end
 
 			if price ~= nil then
@@ -1398,6 +1399,7 @@ local function sell_trader(trader,force_mem,tax_rate)
 				update_transaction(force_mem,"item",item.name,price,-item.count)
 				if item.count ~= 0 then 
 					trader.sold_name = item.name
+					trader.sold_quality = item.quality
 				end
 			end
 		end
@@ -1419,6 +1421,7 @@ local function sell_trader(trader,force_mem,tax_rate)
 				update_transaction(force_mem,"fluid",name,price,-amount)
 				if amount ~= 0 then 
 					trader.sold_name = name
+					trader.sold_quality = nil
 				end
 			end
 		end
@@ -1439,6 +1442,7 @@ local function sell_trader(trader,force_mem,tax_rate)
 			
 			update_transaction(force_mem,"energy",name,price,-count)
 			trader.sold_name = name
+			trader.sold_quality = nil
 		end
 	end
 

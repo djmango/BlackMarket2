@@ -15,6 +15,7 @@ local gui = require('__flib__.gui')
 
 local trader_type = { item=1, fluid=2, energy=3, "item", "fluid", "energy" }
 local energy_name = "market-energy" -- name of fake energy item
+local quality_names = {"normal", "uncommon", "rare", "epic", "legendary"}
 local quality_multipliers = {
 	normal = 1,
 	uncommon = 2.1,
@@ -470,17 +471,28 @@ local function update_menu_trader( player, player_mem, update_orders )
 				
 		if update_orders then
 			clean_gui(player_mem.scr_blkmkt_trader_orders)
-			local gui2 = player_mem.scr_blkmkt_trader_orders.add({type = "table", name = "tab_blkmkt_trader_orders", column_count = 4, style = "table_blkmkt_style"})
+			local gui2
+			if trader.type == trader_type.item then
+				gui2 = player_mem.scr_blkmkt_trader_orders.add({type = "table", name = "tab_blkmkt_trader_orders", column_count = 5, style = "table_blkmkt_style"})
+			else
+				gui2 = player_mem.scr_blkmkt_trader_orders.add({type = "table", name = "tab_blkmkt_trader_orders", column_count = 4, style = "table_blkmkt_style"})
+			end
 			
 			gui2.add({type = "label"})
 			gui2.add({type = "label", caption = "name", style = "label_blkmkt_style"})
 			gui2.add({type = "label", caption = "count", style = "label_blkmkt_style"})
 			gui2.add({type = "label", caption = "price", style = "label_blkmkt_style"})
-			
-			function add_order(n,prefix,name,count,del_but)
+			if trader.type == trader_type.item then
+				gui2.add({type = "label", caption = "quality", style = "label_blkmkt_style"})
+			end
+
+			function add_order(n,prefix,name,count,quality,del_but)
 				local price = storage.prices[name]
 				local current, evol
-				if price then
+				if price and quality then
+					current = price.current * quality_multipliers[quality_names[quality]]
+					evol = price.evolution
+				elseif price then
 					current = price.current
 					evol = price.evolution
 				else
@@ -499,25 +511,35 @@ local function update_menu_trader( player, player_mem, update_orders )
 				else
 					gui2.add({type = "sprite-button", name = "but_blkmkt_ori_" .. string.format("%4d",n) .. name, sprite = prefix .. name, style = "sprite_obj_blkmkt_style"})
 				end
-				
+
 				gui2.add({type = "textfield", name = "but_blkmkt_orc_" .. string.format("%4d",n) .. name, text = count, style = "textfield_blkmkt_style"})
 				gui2.add({type = "label", caption = format_money(current) .. " " .. format_evolution(evol), style = "label_blkmkt_style"})
+
+				if quality then
+					gui3 = gui2.add({type = "drop-down", name = "dpn_blkmkt_qlt_" .. string.format("%4d",n) .. name})
+					gui3.add_item("normal")
+					gui3.add_item("uncommon")
+					gui3.add_item("rare")
+					gui3.add_item("epic")
+					gui3.add_item("legendary")
+					gui3.selected_index = quality
+				end
 			end
 
 			if trader.type == trader_type.item then
 				for n, order in pairs(trader.orders) do
 					if n > 99 then break end
-					add_order(n,"item/",order.name,order.count,true)
+					add_order(n,"item/",order.name,order.count,order.quality,true)
 				end
 			elseif trader.type == trader_type.fluid then
 				local order = trader.orders[1]
 				if order then
-					add_order(1,"fluid/",order.name,order.count,false)
+					add_order(1,"fluid/",order.name,order.count,order.quality,false)
 				end
 			elseif trader.type == trader_type.energy then
 				local order = trader.orders[1]
 				if order then
-					add_order(1,nil,energy_name,order.count,false)
+					add_order(1,nil,energy_name,order.count,order.quality,false)
 				end
 			end
 		end
@@ -600,7 +622,8 @@ local function build_menu_objects(player, open_or_close, ask_sel)
 		end
 		
 		main_window.add({type = "button", name = "but_blkmkt_itml_refresh", caption = {"blkmkt-gui-refresh"}, style = "button_blkmkt_style"})
-		
+
+
 		if ask_sel then
 			main_window.add({type = "button", name = "but_blkmkt_itml_cancel", caption = {"blkmkt-gui-cancel"}, style = "button_blkmkt_style"})
 		else
@@ -1242,7 +1265,7 @@ local function init_trader( trader, level )
 	trader.orders_tot = 0 -- total of the purchase list, without taxes
 	trader.orders = {} -- purchase orders, list of {name, count}
 	trader.sold_name = nil -- name of the last sold item
-	trader.sold_quality = nil -- quality of the last sold item
+	trader.sold_quality = 1 -- quality of the last sold item
 	-- trader.price = nil -- price of the main object sold (1 item, fluid or energy)
 	
 	trader.editer = nil -- player who is currently editing
@@ -1421,7 +1444,7 @@ local function sell_trader(trader,force_mem,tax_rate)
 				update_transaction(force_mem,"fluid",name,price,-amount)
 				if amount ~= 0 then 
 					trader.sold_name = name
-					trader.sold_quality = nil
+					trader.sold_quality = 1
 				end
 			end
 		end
@@ -1442,7 +1465,7 @@ local function sell_trader(trader,force_mem,tax_rate)
 			
 			update_transaction(force_mem,"energy",name,price,-count)
 			trader.sold_name = name
-			trader.sold_quality = nil
+			trader.sold_quality = 1
 		end
 	end
 
@@ -1478,10 +1501,11 @@ local function buy_trader(trader,force_mem,tax_rate)
 			local order = trader.orders[i]
 			local name = order.name
 			local count = order.count
+			local quality = quality_names[order.quality]
 			price = storage.prices[name]
 			
 			if price and count > 0 then
-				money1 = count * price.current 
+				money1 = count * price.current * quality_multipliers[quality]
 				
 				if name == "ucoin" then
 					tax1 = 0
@@ -1491,9 +1515,9 @@ local function buy_trader(trader,force_mem,tax_rate)
 				
 				if money1+tax1 <= force_mem.credits then
 					-- can buy !
-					local purchased = inv.insert({name=name,count=count})
+					local purchased = inv.insert({name=name,count=count,quality=quality})
 					if purchased < count then
-						money1 = purchased * price.current 
+						money1 = purchased * price.current * quality_multipliers[quality]
 						if name == "ucoin" then
 							tax1 = 0
 						else
@@ -1706,7 +1730,9 @@ local function compute_trader_data(trader,update_orders)
 		tot = 0
 		for _, order in pairs(trader.orders) do
 			local price = storage.prices[order.name]
-			if price then
+			if price and order.quality then
+				tot = tot + order.count * price.current * quality_multipliers[quality_names[order.quality]]
+			elseif price then
 				tot = tot + order.count * price.current
 			end
 		end
@@ -2084,15 +2110,15 @@ local function on_creation( event )
 		else
 			if type == trader_type.item then
 				trader.orders = {
-					{name = "ucoin", count = 0, price = storage.prices["ucoin"].current },
+					{name = "ucoin", count = 0, price = storage.prices["ucoin"].current, quality = 1 },
 				}
 			elseif type == trader_type.fluid then
 				trader.orders = {
-					{name = "crude-oil", count = 0, price = storage.prices["crude-oil"].current },
+					{name = "crude-oil", count = 0, price = storage.prices["crude-oil"].current, quality = nil },
 				}
 			elseif type == trader_type.energy then
 				trader.orders = {
-					{name = energy_name, count = 0, price = storage.prices[energy_name].current },
+					{name = energy_name, count = 0, price = storage.prices[energy_name].current, quality = nil },
 				}
 			end
 			table.insert(force_mem.traders_buy,trader)
@@ -2708,7 +2734,7 @@ local function on_gui_click(event)
 		
 		if trader.type == trader_type.item then
 			if #trader.orders < 99 then
-				table.insert(trader.orders,1,{name="coal", count=0, price=storage.prices.coal.current})
+				table.insert(trader.orders,1,{name="coal", count=0, price=storage.prices.coal.current, quality=1})
 				update_menu_trader(player,player_mem,true)
 			end
 		end
@@ -2754,6 +2780,35 @@ end
 
 script.on_event(defines.events.on_gui_click, on_gui_click)
 script.on_event(defines.events.on_gui_checked_state_changed, on_gui_click)
+
+--------------------------------------------------------------------------------------
+local function on_gui_selection_state_changed(event)
+	local player = game.players[event.player_index]
+	-- local force = player.force
+	local player_mem = storage.player_mem[player.index]
+	local event_name = event.element.name
+	local prefix = string.sub(event_name,1,15)
+	local nix = tonumber(string.sub(event_name,16,19))
+	-- local suffix = string.sub(event_name,20)
+
+	local trader = player_mem.opened_trader
+
+	if trader and nix ~= nil then
+
+		
+		local order = trader.orders[nix]
+			
+		if order then
+			order.quality = event.element.selected_index
+		end
+			
+		compute_trader_data(trader,true)
+		-- update_menu_trader(player,player_mem,true)
+	end
+		
+end
+
+script.on_event(defines.events.on_gui_selection_state_changed, on_gui_selection_state_changed)
 
 --------------------------------------------------------------------------------------
 local function on_gui_text_changed(event)

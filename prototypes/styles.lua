@@ -180,6 +180,27 @@ default_gui.button_blkmkt_style =
 	},
 }
 
+default_gui.dropdown_blkmkt_style = 
+{
+	type="dropdown_style",
+	parent="dropdown",
+	font="font_bold_blkmkt",
+	align = "center",
+	default_font_color={r=1, g=1, b=1},
+	hovered_font_color={r=1, g=1, b=1},
+	top_padding = 0,
+	right_padding = 0,
+	bottom_padding = 0,
+	left_padding = 0,
+	left_click_sound =
+	{
+		{
+		  filename = "__core__/sound/gui-click.ogg",
+		  volume = 1
+		}
+	},
+}
+
 default_gui.button_blkmkt_credits_style = 
 {
 	type="button_style",

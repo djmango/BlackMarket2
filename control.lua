@@ -446,7 +446,9 @@ local function update_menu_trader( player, player_mem, update_orders )
 		if sold_name then
 			local multiplier = 1
 			if trader.type == trader_type.item then
-				multiplier = quality_multipliers[trader.sold_quality]
+				if trader.sold_quality then
+					multiplier = quality_multipliers[trader.sold_quality]
+				end
 				player_mem.but_blkmkt_trader_sold.sprite = "item/" .. sold_name
 				player_mem.but_blkmkt_trader_sold.tooltip = prototypes.get_item_filtered({})[sold_name].localised_name
 			elseif trader.type == trader_type.fluid then
@@ -1502,6 +1504,9 @@ local function buy_trader(trader,force_mem,tax_rate)
 			local name = order.name
 			local count = order.count
 			local quality = quality_names[order.quality]
+			if quality == nil then -- make sure old orders are still valid after mod upgrade
+				quality = "normal"
+			end
 			price = storage.prices[name]
 			
 			if price and count > 0 then

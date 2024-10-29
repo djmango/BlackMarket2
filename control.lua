@@ -2793,19 +2793,21 @@ local function on_gui_selection_state_changed(event)
 
 	local trader = player_mem.opened_trader
 
-	if trader and nix ~= nil then
+	if prefix == "dpn_blkmkt_qlt_" then
 
-		
-		local order = trader.orders[nix]
+		if trader and nix ~= nil then
+
 			
-		if order then
-			order.quality = event.element.selected_index
+			local order = trader.orders[nix]
+				
+			if order then
+				order.quality = event.element.selected_index
+			end
+				
+			compute_trader_data(trader,true)
+			-- update_menu_trader(player,player_mem,true)
 		end
-			
-		compute_trader_data(trader,true)
-		-- update_menu_trader(player,player_mem,true)
 	end
-		
 end
 
 script.on_event(defines.events.on_gui_selection_state_changed, on_gui_selection_state_changed)

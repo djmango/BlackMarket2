@@ -37,6 +37,10 @@ table.sort(quality_list, function(a, b) return a.level <= b.level end)
 local vanilla_quality_multipliers = {1, 2.1, 4.8, 10.5, 35}
 
 local function get_quality_multiplier(level) -- level is 1 indexed (1 = normal, 2 = uncommon, ...)
+	if type(level) == "string" then
+		level = quality_lookup_by_name[level].level + 1
+	end
+
 	if level <= 5 then
 		return vanilla_quality_multipliers[level]
 	else

@@ -15,14 +15,34 @@ local gui = require('__flib__.gui')
 
 local trader_type = { item=1, fluid=2, energy=3, "item", "fluid", "energy" }
 local energy_name = "market-energy" -- name of fake energy item
-local quality_names = {"normal", "uncommon", "rare", "epic", "legendary"}
-local quality_multipliers = {
-	normal = 1,
-	uncommon = 2.1,
-	rare = 4.8, 
-	epic = 10.5,
-	legendary = 35
-}
+
+local quality_list = {}
+local quality_lookup_by_name = {}
+local quality_lookup_by_level = {}
+
+for name, proto in pairs(prototypes.quality) do
+	if not proto.hidden then
+		local index = #quality_list + 1
+		quality_list[index] = proto
+		quality_list[proto] = index
+		quality_lookup_by_level[proto.level] = proto
+	end
+
+	quality_lookup_by_name[proto.name] = proto
+end
+
+table.sort(quality_list, function(a, b) return a.level <= b.level end)
+
+-- normal, uncommon, rare, epic, legendary
+local vanilla_quality_multipliers = {1, 2.1, 4.8, 10.5, 35}
+
+local function get_quality_multiplier(level) -- level is 1 indexed (1 = normal, 2 = uncommon, ...)
+	if level <= 5 then
+		return vanilla_quality_multipliers[level]
+	else
+		return 35 * 3^(level - 5)
+	end
+end
 
 local trader_signals =
 	{
@@ -447,7 +467,7 @@ local function update_menu_trader( player, player_mem, update_orders )
 			local multiplier = 1
 			if trader.type == trader_type.item then
 				if trader.sold_quality then
-					multiplier = quality_multipliers[trader.sold_quality]
+					multiplier = get_quality_multiplier(trader.sold_quality)
 				end
 				player_mem.but_blkmkt_trader_sold.sprite = "item/" .. sold_name
 				player_mem.but_blkmkt_trader_sold.tooltip = prototypes.get_item_filtered({})[sold_name].localised_name
@@ -492,7 +512,7 @@ local function update_menu_trader( player, player_mem, update_orders )
 				local price = storage.prices[name]
 				local current, evol
 				if price and quality then
-					current = price.current * quality_multipliers[quality_names[quality]]
+					current = price.current * get_quality_multiplier(quality)
 					evol = price.evolution
 				elseif price then
 					current = price.current
@@ -519,12 +539,12 @@ local function update_menu_trader( player, player_mem, update_orders )
 
 				if quality then
 					gui3 = gui2.add({type = "drop-down", name = "dpn_blkmkt_qlt_" .. string.format("%4d",n) .. name})
-					gui3.add_item("normal")
-					gui3.add_item("uncommon")
-					gui3.add_item("rare")
-					gui3.add_item("epic")
-					gui3.add_item("legendary")
-					gui3.selected_index = quality
+
+					for _, proto in ipairs(quality_list) do
+						gui3.add_item(proto.localised_name)
+					end
+
+					gui3.selected_index = quality_list[quality_lookup_by_level[quality - 1]]
 				end
 			end
 
@@ -1403,9 +1423,10 @@ local function sell_trader(trader,force_mem,tax_rate)
 		
 		for i, item in pairs(inv.get_contents()) do
 			price = storage.prices[item.name]
+			local quality = quality_lookup_by_name[item.quality].level + 1
 			local quality_multiplier = 1
 			if item.quality ~= nil then
-				quality_multiplier = quality_multipliers[item.quality]
+				quality_multiplier = get_quality_multiplier(quality)
 			end
 
 			if price ~= nil then
@@ -1424,7 +1445,7 @@ local function sell_trader(trader,force_mem,tax_rate)
 				update_transaction(force_mem,"item",item.name,price,-item.count)
 				if item.count ~= 0 then 
 					trader.sold_name = item.name
-					trader.sold_quality = item.quality
+					trader.sold_quality = quality
 				end
 			end
 		end
@@ -1503,14 +1524,14 @@ local function buy_trader(trader,force_mem,tax_rate)
 			local order = trader.orders[i]
 			local name = order.name
 			local count = order.count
-			local quality = quality_names[order.quality]
+			local quality = order.quality
 			if quality == nil then -- make sure old orders are still valid after mod upgrade
-				quality = "normal"
+				quality = 1
 			end
 			price = storage.prices[name]
 			
 			if price and count > 0 then
-				money1 = count * price.current * quality_multipliers[quality]
+				money1 = count * price.current * get_quality_multiplier(quality)
 				
 				if name == "ucoin" then
 					tax1 = 0
@@ -1522,7 +1543,7 @@ local function buy_trader(trader,force_mem,tax_rate)
 					-- can buy !
 					local purchased = inv.insert({name=name,count=count,quality=quality})
 					if purchased < count then
-						money1 = purchased * price.current * quality_multipliers[quality]
+						money1 = purchased * price.current * get_quality_multiplier(quality)
 						if name == "ucoin" then
 							tax1 = 0
 						else
@@ -1736,7 +1757,7 @@ local function compute_trader_data(trader,update_orders)
 		for _, order in pairs(trader.orders) do
 			local price = storage.prices[order.name]
 			if price and order.quality then
-				tot = tot + order.count * price.current * quality_multipliers[quality_names[order.quality]]
+				tot = tot + order.count * price.current * get_quality_multiplier(order.quality)
 			elseif price then
 				tot = tot + order.count * price.current
 			end
@@ -2806,7 +2827,7 @@ local function on_gui_selection_state_changed(event)
 			local order = trader.orders[nix]
 				
 			if order then
-				order.quality = event.element.selected_index
+				order.quality = quality_list[event.element.selected_index].level + 1
 			end
 				
 			compute_trader_data(trader,true)

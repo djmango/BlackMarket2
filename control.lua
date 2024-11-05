@@ -1545,7 +1545,7 @@ local function buy_trader(trader,force_mem,tax_rate)
 				
 				if money1+tax1 <= force_mem.credits then
 					-- can buy !
-					local purchased = inv.insert({name=name,count=count,quality=quality})
+					local purchased = inv.insert({name=name,count=count,quality=quality_lookup_by_level[quality - 1]})
 					if purchased < count then
 						money1 = purchased * price.current * get_quality_multiplier(quality)
 						if name == "ucoin" then

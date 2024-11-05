@@ -548,7 +548,7 @@ local function update_menu_trader( player, player_mem, update_orders )
 						gui3.add_item(proto.localised_name)
 					end
 
-					gui3.selected_index = quality_list[quality_lookup_by_level[quality - 1]]
+					gui3.selected_index = quality_list[quality_lookup_by_level[quality - 1]] or 1
 				end
 			end
 

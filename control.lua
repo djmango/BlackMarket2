@@ -1331,7 +1331,7 @@ end
 local function evaluate_trader(trader)
 	if storage.prices_computed then return end
 	
-	if trader.entity == nil or not trader.entity.valid then 
+	if trader.entity == nil or not trader.entity.valid then
 		trader.evaluation = 0
 		return
 	end
@@ -1340,13 +1340,21 @@ local function evaluate_trader(trader)
 	
 	if trader.type == trader_type.item then
 		local inv = trader.entity.get_inventory(defines.inventory.chest)
-		local contents = inv.get_contents()
-		local price = nil
-		
-		for name, count in pairs(inv.get_contents()) do
-			price = storage.prices[name]
+		for _, item in ipairs(inv.get_contents()) do
+			local price = storage.prices[item.name]
 			if price ~= nil then
-				money = money + count * price.current 
+				local quality = item.quality
+				local quality_multiplier = 1
+
+				if type(quality) == "string" then
+					quality = quality_lookup_by_name[quality]
+				end
+
+				if quality then
+					quality_multiplier = get_quality_multiplier(quality.level + 1)
+				end
+
+				money = money + item.count * price.current * quality_multiplier
 			end
 		end
 		
@@ -1422,38 +1430,39 @@ local function sell_trader(trader,force_mem,tax_rate)
 
 	if trader.type == trader_type.item then
 		local inv = trader.entity.get_inventory(defines.inventory.chest)
-		-- local contents = inv.get_contents()
-		local price = nil
-		
-		for i, item in pairs(inv.get_contents()) do
-			price = storage.prices[item.name]
-			local quality = quality_lookup_by_name[item.quality].level + 1
-			local quality_multiplier = 1
-			if item.quality ~= nil then
-				quality_multiplier = get_quality_multiplier(quality)
-			end
-
+		for _, item in ipairs(inv.get_contents()) do
+			local price = storage.prices[item.name]
 			if price ~= nil then
-				money1 = item.count * price.current * quality_multiplier
-				
-				if item.name == "ucoin" then
-					tax1 = 0
-				else
-					tax1 = money1 * tax_rate / 100
+				local quality = item.quality
+				local quality_multiplier = 1
+
+				if type(quality) == "string" then
+					quality = quality_lookup_by_name[quality]
 				end
-				money = money + money1 
-				taxes = taxes + tax1
-				
-				inv.remove({name=item.name,count=item.count,quality=item.quality})
-				
+
+				if quality then
+					quality_multiplier = get_quality_multiplier(quality.level + 1)
+				end
+
+				local price_total = item.count * price.current * quality_multiplier
+				local tax_total = 0
+
+				if item.name ~= "ucoin" then
+					tax_total = price_total * tax_rate / 100
+				end
+
+				money = money + price_total
+				taxes = taxes + tax_total
+
+				inv.remove({name=item.name,count=item.count,quality=quality})
 				update_transaction(force_mem,"item",item.name,price,-item.count)
-				if item.count ~= 0 then 
+
+				if item.count ~= 0 then
 					trader.sold_name = item.name
-					trader.sold_quality = quality
+					trader.sold_quality = quality.level + 1
 				end
 			end
 		end
-		
 		
 	elseif trader.type == trader_type.fluid then
 		local tank = trader.entity
@@ -1522,45 +1531,46 @@ local function buy_trader(trader,force_mem,tax_rate)
 	
 	if trader.type == trader_type.item then
 		local inv = trader.entity.get_inventory(defines.inventory.chest)
-		local price = nil
-		
-		for i=1,#trader.orders do
-			local order = trader.orders[i]
-			local name = order.name
-			local count = order.count
-			local quality = order.quality
-			if quality == nil then -- make sure old orders are still valid after mod upgrade
-				quality = 1
-			end
-			price = storage.prices[name]
-			
-			if price and count > 0 then
-				money1 = count * price.current * get_quality_multiplier(quality)
-				
-				if name == "ucoin" then
-					tax1 = 0
-				else
-					tax1 = money1 * tax_rate / 100
+
+		for i, order in ipairs(trader.orders) do
+			local price = storage.prices[order.name]
+			if price ~= nil and order.count > 0 then
+				local quality = order.quality
+				local quality_multiplier = 1
+	
+				if quality then
+					quality = quality_lookup_by_level[quality - 1]
 				end
-				
-				if money1+tax1 <= force_mem.credits then
-					-- can buy !
-					local purchased = inv.insert({name=name,count=count,quality=quality})
-					if purchased < count then
-						money1 = purchased * price.current * get_quality_multiplier(quality)
-						if name == "ucoin" then
-							tax1 = 0
-						else
-							tax1 = money1 * tax_rate / 100
+	
+				if quality then
+					quality_multiplier = get_quality_multiplier(quality.level + 1)
+				end
+
+				local price_total = order.count * price.current * quality_multiplier
+				local tax_total = 0
+
+				if order.name ~= "ucoin" then
+					tax_total = price_total * tax_rate / 100
+				end
+
+				if price_total + tax_total <= force_mem.credits then
+					local purchased = inv.insert({name=order.name,count=order.count,quality=quality})
+
+					if purchased < order.count then
+						price_total = purchased * price.current * quality_multiplier
+
+						if order.name ~= "ucoin" then
+							tax_total = price_total * tax_rate / 100
 						end
 					end
-					force_mem.credits = force_mem.credits - money1 - tax1
-					money = money + money1
-					taxes = taxes + tax1
-					
-					update_transaction(force_mem,"item",name,price,purchased)
+
+					force_mem.credits = force_mem.credits - price_total - tax_total
+					money = money + price_total
+					taxes = taxes + tax_total
+	
+					update_transaction(force_mem,"item",order.name,price,purchased)
 				end
-			end			
+			end
 		end
 		
 	elseif trader.type == trader_type.fluid then

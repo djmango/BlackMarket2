@@ -33,18 +33,18 @@ end
 
 table.sort(quality_list, function(a, b) return a.level <= b.level end)
 
--- normal, uncommon, rare, epic, legendary
-local vanilla_quality_multipliers = {1, 2.1, 4.8, 10.5, 35}
+-- normal, uncommon, rare, epic, (unused in vanilla), legendary
+local vanilla_quality_multipliers = {1, 2.1, 4.8, 10.5, 22, 35}
 
 local function get_quality_multiplier(level) -- level is 1 indexed (1 = normal, 2 = uncommon, ...)
 	if type(level) == "string" then
 		level = quality_lookup_by_name[level].level + 1
 	end
 
-	if level <= 5 then
+	if level <= 6 then
 		return vanilla_quality_multipliers[level]
 	else
-		return 35 * 3^(level - 5)
+		return 35 * 3^(level - 6)
 	end
 end
 
@@ -548,7 +548,7 @@ local function update_menu_trader( player, player_mem, update_orders )
 						gui3.add_item(proto.localised_name)
 					end
 
-					gui3.selected_index = quality_list[quality_lookup_by_level[quality - 1]]
+					gui3.selected_index = quality_list[quality_lookup_by_level[quality - 1]] or 1
 				end
 			end
 

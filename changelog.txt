@@ -1,3 +1,33 @@
+Version: 2.2.11
+Date: 2024-11-08
+  Changes:
+    -  Fixes a crash when Space Age DLC is not installed, or quality is not enabled
+---------------------------------------------------------------------------------------------------
+Version: 2.2.10
+Date: 2024-11-06
+  Changes:
+    -  Fixes the price multiplier for the Legendary quality level
+    -  Fixes a crash when viewing buy orders with quality levels that no longer exist
+---------------------------------------------------------------------------------------------------
+Version: 2.2.9
+Date: 2024-11-04
+  Changes:
+    -  Fixes "expected LuaQualityPrototype or string" crash when buying items with quality
+---------------------------------------------------------------------------------------------------
+Version: 2.2.8
+Date: 2024-11-04
+  Changes:
+    -  Fixes loading of saves from 2.2.6 or earlier
+---------------------------------------------------------------------------------------------------
+Version: 2.2.7
+Date: 2024-11-04
+  Changes:
+    -  Adds support for modded quality levels
+---------------------------------------------------------------------------------------------------
+Version: 2.2.6
+Date: 2024-10-29
+  Changes:
+    -  Fixes loading of old saves from before quality was added
 ---------------------------------------------------------------------------------------------------
 Version: 2.2.5
 Date: 2024-10-28

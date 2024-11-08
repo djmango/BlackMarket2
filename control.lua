@@ -33,6 +33,8 @@ end
 
 table.sort(quality_list, function(a, b) return a.level <= b.level end)
 
+local has_quality = #quality_list > 0
+
 -- normal, uncommon, rare, epic, (unused in vanilla), legendary
 local vanilla_quality_multipliers = {1, 2.1, 4.8, 10.5, 22, 35}
 
@@ -498,7 +500,7 @@ local function update_menu_trader( player, player_mem, update_orders )
 		if update_orders then
 			clean_gui(player_mem.scr_blkmkt_trader_orders)
 			local gui2
-			if trader.type == trader_type.item then
+			if has_quality and trader.type == trader_type.item then
 				gui2 = player_mem.scr_blkmkt_trader_orders.add({type = "table", name = "tab_blkmkt_trader_orders", column_count = 5, style = "table_blkmkt_style"})
 			else
 				gui2 = player_mem.scr_blkmkt_trader_orders.add({type = "table", name = "tab_blkmkt_trader_orders", column_count = 4, style = "table_blkmkt_style"})
@@ -508,7 +510,7 @@ local function update_menu_trader( player, player_mem, update_orders )
 			gui2.add({type = "label", caption = "name", style = "label_blkmkt_style"})
 			gui2.add({type = "label", caption = "count", style = "label_blkmkt_style"})
 			gui2.add({type = "label", caption = "price", style = "label_blkmkt_style"})
-			if trader.type == trader_type.item then
+			if has_quality and trader.type == trader_type.item then
 				gui2.add({type = "label", caption = "quality", style = "label_blkmkt_style"})
 			end
 
@@ -541,7 +543,7 @@ local function update_menu_trader( player, player_mem, update_orders )
 				gui2.add({type = "textfield", name = "but_blkmkt_orc_" .. string.format("%4d",n) .. name, text = count, style = "textfield_blkmkt_style"})
 				gui2.add({type = "label", caption = format_money(current) .. " " .. format_evolution(evol), style = "label_blkmkt_style"})
 
-				if quality then
+				if has_quality and quality then
 					gui3 = gui2.add({type = "drop-down", name = "dpn_blkmkt_qlt_" .. string.format("%4d",n) .. name})
 
 					for _, proto in ipairs(quality_list) do

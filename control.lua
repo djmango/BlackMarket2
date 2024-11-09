@@ -2776,7 +2776,7 @@ local function on_gui_click(event)
 		
 		if trader.type == trader_type.item then
 			if #trader.orders < 99 then
-				table.insert(trader.orders,1,{name="coal", count=0, price=storage.prices.coal.current, quality=1})
+				table.insert(trader.orders,1,{name="ucoin", count=0, price=storage.prices.ucoin.current, quality=1})
 				update_menu_trader(player,player_mem,true)
 			end
 		end

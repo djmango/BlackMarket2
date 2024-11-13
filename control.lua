@@ -1193,19 +1193,6 @@ local function draw_elem_gui(market, player)
 
         local n = 1
 
-        if settings.global['mbm-unkn-items-stg'].value then
-            local manual_res = str_split(settings.global['mbm-unkn-items-stg'].value,';')
-            for _,item_str in pairs(manual_res) do
-                local split_str = str_split(item_str,'=')
-                local item_name = split_str[1]
-                local item_price = tonumber(split_str[2])
-                vanilla_resources_prices[item_name]=item_price
-            end
-        end
-        update_objects_prices_start()
-        update_objects_prices()
-        update_groups()
-
         local table_tab = main_window.add({ type = 'table', column_count = 5 })
         local content_widget = main_window.add { type = "frame" }
         --local content_widget = main_window.add { type = 'frame' ,style = 'slot_button_deep_frame' }
@@ -1226,15 +1213,12 @@ local function draw_elem_gui(market, player)
             local is_fluid = (market.type == market_type.fluid)
             local recipe = player.force.recipes[name]
             local unlocked = false
-            -- Controllo per aggiungere gli oggetti non ancora ricercati se abilitato
             if stg_unknown_tech then
                 unlocked = true
             else
-                -- Verifica se il fluido o oggetto è abilitato tramite una ricetta
                 if recipe and recipe.enabled then
                     unlocked = true
                 elseif is_fluid then
-                    -- Se non è abilitato tramite ricetta, controlla la tecnologia o se è un fluido naturale
                     for _, technology in pairs(player.force.technologies) do
                         if technology.enabled and technology.researched then
                             for _, effect in pairs(technology.prototype.effects) do
@@ -1249,12 +1233,10 @@ local function draw_elem_gui(market, player)
                         end
                     end
 
-                    -- Includi fluidi naturali
                     if not unlocked then
                         unlocked = (item.subgroup.name == "fluid-recipes")
                     end
 
-                    -- Verifica se il fluido è un prodotto di una ricetta sbloccata
                     if not unlocked then
                         for _, recipe in pairs(player.force.recipes) do
                             if recipe.enabled then
@@ -1273,13 +1255,10 @@ local function draw_elem_gui(market, player)
                 end
             end
 
-            -- Includi risorse naturali acquistabili (ad esempio controllando il gruppo o un attributo speciale)
             if not unlocked then
-                -- Supponiamo che le risorse naturali abbiano un gruppo o sottogruppo specifico, ad esempio "natural-resources"
                 unlocked = (item.group.name == "raw-resource") or (item.subgroup.name == "raw-resource")
             end
 
-            -- Aggiungi l'oggetto alla struttura `categorized_items` se sbloccato
             if unlocked then
                 local group = item.group.name
                 local subgroup = item.subgroup.name
@@ -1327,9 +1306,7 @@ local function draw_elem_gui(market, player)
 
             tab_content3.style.top_margin = 0
             tab_content3.style.vertical_spacing = 0
-            -- Aggiungi elementi di ogni sottogruppo
             for subgroup_name, items in pairs(subgroups) do
-                -- Crea un `frame` per ogni sottogruppo
                 local subgroup_frame = tab_content3.add({ type = 'table', column_count = 10 })
                 subgroup_frame.style.top_margin = 0
                 subgroup_frame.style.vertical_spacing = 0
@@ -1338,13 +1315,11 @@ local function draw_elem_gui(market, player)
 
                 -- Aggiungi ogni item sbloccato del sottogruppo
                 for _, item in ipairs(items) do
-                    --subgroup_frame.add { type = "label", caption = {'',item.localised_name,' RUB'} }
                     local oldprice = 0
                     if storage.prices[item.name] then
                         oldprice = storage.prices[item.name].current
                     end
-                    --print(format_money(calculate_item_price('express-transport-belt',0,player)))
-                    local price_txt = format_money(oldprice) .. ' - '--..format_money(calculate_item_price(item.name,0,player))
+                    local price_txt = format_money(oldprice) --..format_money(calculate_item_price(item.name,0,player))
                     if market.type == market_type.item then
                         subgroup_frame.add({ type = "sprite-button", name = "mbm_btn_sel_elem=" .. item.name, sprite = "item/" .. item.name, style = 'slot_button', tooltip = { '', price_txt, ' - ', item.localised_name } })
                     elseif market.type == market_type.fluid then
@@ -1379,7 +1354,7 @@ local function open_gui_event(event)
                         swap_entity.destructible = false
                         swap_entity.minable = false
                         swap_chests(market.entity, swap_entity)
-                        player.opened = swap_entity  -- Apre l'inventario del container invisibile
+                        player.opened = swap_entity
                         market.main_chest = market.entity
                         market.entity = swap_entity
 
@@ -1688,7 +1663,6 @@ local function on_gui_text_changed(event)
         return
     end
     if btn == "txt_mbm_qnt" then
-        -- change order count
         local count = tonumber(event.element.text)
         if count ~= nil then
             market_opened.orders[order_id].quantity = count
@@ -1696,7 +1670,6 @@ local function on_gui_text_changed(event)
         end
     end
     if btn == "txt_mbm_const_value" then
-        -- change order count
         local count = tonumber(event.element.text)
         if count ~= nil then
             market_opened.signal_constant_number = count
@@ -1715,7 +1688,6 @@ local function on_gui_dropdown_changed(event)
         return
     end
     if btn == "drp_mbm_qlt" then
-        -- change order count
         local quality = tonumber(event.element.selected_index)
         if quality ~= nil then
             if quality <= 0 then
@@ -1973,6 +1945,9 @@ local function configure_settings_local()
         tax_pay = 0
     end
     configure_settings()
+    update_objects_prices_start()
+    update_objects_prices()
+    update_groups()
 end
 script.on_event(defines.events.on_runtime_mod_setting_changed, configure_settings_local)
 

@@ -1,866 +1,319 @@
-debug_status = 0
-debug_mod_name = "BlackMarket2"
-debug_file = debug_mod_name .. "-debug.txt"
-prices_file = debug_mod_name .. "-prices.csv"
-price_log = debug_mod_name .. "-unknownPrices.log"
-specials_file = debug_mod_name .. "-specials.txt"
 require("utils")
 require("config")
 mod_gui = require("mod-gui")
-
-configure_settings()
-
 local table = require('__flib__.table')
-local gui = require('__flib__.gui')
-
-local trader_type = { item=1, fluid=2, energy=3, "item", "fluid", "energy" }
-local energy_name = "market-energy" -- name of fake energy item
-
-local quality_list = {}
-local quality_lookup_by_name = {}
-local quality_lookup_by_level = {}
-
-for name, proto in pairs(prototypes.quality) do
-	if not proto.hidden then
-		local index = #quality_list + 1
-		quality_list[index] = proto
-		quality_list[proto] = index
-		quality_lookup_by_level[proto.level] = proto
-	end
-
-	quality_lookup_by_name[proto.name] = proto
+configure_settings()
+local market_type = { item = 1, fluid = 2, energy = 3, "item", "fluid", "energy" }
+local condition_type = { '>', '<', '=', '>=', '<=', '~=' }
+local energy_name = 'market-energy'
+local market_opened = nil
+local content_list = {  }
+local content_select_order_id = nil
+local tax_pay = stg_tax_rate / 100
+local local_p = nil
+local recalculate_price = true
+if stg_tax_enable == false then
+    tax_pay = 0
 end
-
-table.sort(quality_list, function(a, b) return a.level <= b.level end)
-
-local has_quality = #quality_list > 0
-
--- normal, uncommon, rare, epic, (unused in vanilla), legendary
-local vanilla_quality_multipliers = {1, 2.1, 4.8, 10.5, 22, 35}
-
-local function get_quality_multiplier(level) -- level is 1 indexed (1 = normal, 2 = uncommon, ...)
-	if type(level) == "string" then
-		level = quality_lookup_by_name[level].level + 1
-	end
-
-	if level <= 6 then
-		return vanilla_quality_multipliers[level]
-	else
-		return 35 * 3^(level - 6)
-	end
-end
-
-local trader_signals =
-	{
-		auto_all = {type="virtual",name="signal-market-auto-all"},
-		auto_sell = {type="virtual",name="signal-market-auto-sell"},
-		auto_buy = {type="virtual",name="signal-market-auto-buy"},
-	}
-
 --------------------------------------------------------------------------------------
-function format_money( n )
-	if n == nil then 
-		return "0u" 
-	end
-
-	local suffixes = {
-		[93] = "Tg",
-		[90] = "NVg",
-		[87] = "OVg",
-		[84] = "SpVg",
-		[81] = "SxVg",
-		[78] = "QiVg",
-		[75] = "QaVg",
-		[72] = "TVg",
-		[69] = "DVg",
-		[66] = "UVg",
-		[63] = "Vg",
-		[60] = "NmDc",
-		[57] = "OcDc",
-		[54] = "SpDc",
-		[51] = "SxDc",
-		[48] = "QiDc",
-		[45] = "QaDc",
-		[42] = "TDc",
-		[39] = "DDc",
-		[36] = "UDc",
-		[33] = "Dc",
-		[30] = "No",
-		[27] = "Oc",
-		[24] = "Sp",
-		[21] = "Sx",
-		[18] = "Qi",
-		[15] = "Qa",
-		[12] = "T",
-		[9] = "B",
-		[6] = "M",
-		[3] = "K",
-		[0] = ""
-	}
-
-	local abs_n = math.abs(n)
-	local suffix = ""
-	local factor = 1
-
-	for exp = 93, 0, -3 do
-		if abs_n >= 10^exp then
-			suffix = suffixes[exp] .. "u"
-			factor = 10^exp
-			break
-		end
-	end
-
-	local formatted_number = string.format("%.2f", n / factor)
-
-	if n < 0 then
-		formatted_number = formatted_number
-	end
-
-	return formatted_number .. suffix
+---usefulfunctions
+--------------------------------------------------------------------------------------
+local function print(any)
+    game.print(any)
+end
+function str_split (str, sep)
+    local result = {}
+    -- Usa una regex per trovare solo le parti separate da '__'
+    for part in string.gmatch(str, "([^" .. sep .. "]+)" .. sep .. "?") do
+        if part ~= "" then
+            table.insert(result, part)
+        end
+    end
+    return result
+end
+local function isNumber(value)
+    return tonumber(value) and true or false
+end
+local function tprint(tbl, indent)
+    if not indent then
+        indent = 0
+    end
+    local topt = string.rep(" ", indent) .. "{\r\n"
+    indent = indent + 2
+    for k, v in pairs(tbl) do
+        topt = topt .. string.rep(" ", indent)
+        if (type(k) == "number") then
+            topt = topt .. "[" .. k .. "] = "
+        elseif (type(k) == "string") then
+            topt = topt .. k .. "= "
+        end
+        if (type(v) == "number") then
+            topt = topt .. v .. ",\r\n"
+        elseif (type(v) == "string") then
+            topt = topt .. "\"" .. v .. "\",\r\n"
+        elseif (type(v) == "table") then
+            topt = topt .. tprint(v, indent + 2) .. ",\r\n"
+        else
+            topt = topt .. "\"" .. tostring(v) .. "\",\r\n"
+        end
+    end
+    topt = topt .. string.rep(" ", indent - 2) .. "}"
+    return topt
 end
 
 --------------------------------------------------------------------------------------
-function format_evolution( evol )
-	if evol == nil or evol == 0 then
-		return("=")
-	elseif evol > 0 then
-		return("+")
-	else
-		return("-")
-	end
+local quality_type = {}
+local function fill_quality_type()
+    local quality_tier_counter = 1
+    for name, proto in pairs(prototypes.quality) do
+        if #prototypes.quality == 5 then
+            if proto.name == 'normal' then
+                quality_type[proto.name] = 1
+                quality_type[1] = proto.name
+            elseif proto.name == 'uncommon' then
+                quality_type[proto.name] = 2
+                quality_type[2] = proto.name
+            elseif proto.name == 'rare' then
+                quality_type[proto.name] = 3
+                quality_type[3] = proto.name
+            elseif proto.name == 'epic' then
+                quality_type[proto.name] = 4
+                quality_type[4] = proto.name
+            elseif proto.name == 'normal' then
+                quality_type[proto.name] = 5
+                quality_type[5] = proto.name
+            end
+        else
+            if proto.name ~= 'quality-unknown' then
+                quality_type[proto.name] = proto.level
+                quality_type[quality_tier_counter] = proto.name
+                --print('lvl : '..proto.level .. '    name : '..proto.name)
+                quality_tier_counter = quality_tier_counter + 1
+            end
+        end
+    end
+
+    --table.sort(quality_type, function(a, b)
+    --    return quality_type[a] <= quality_type[b]
+    --end)
+end
+fill_quality_type()
+function get_price_quality(price, quality)
+    local lvl = quality_type[quality]
+    if not isNumber(lvl) then
+        lvl = quality_type[lvl]
+    end
+    lvl = tonumber(lvl)
+    if lvl == nil then
+        lvl = 0
+    end
+    lvl = lvl + 1
+    if lvl <= 5 then
+        return price * vanilla_quality_prices[lvl]
+    else
+        return price * ((lvl / quality_muiltipliers[1]) ^ quality_muiltipliers[2])
+    end
 end
 
 --------------------------------------------------------------------------------------
-local function clean_gui(gui)
-	for _, guiname in pairs( gui.children_names ) do
-		gui[guiname].destroy()
-	end
+function format_money(n)
+    if n == nil then
+        return ("0$")
+    end
+
+    local neg, mega
+
+    if n > 1e12 then
+        n = math.floor(n / 1e6)
+        mega = true
+    else
+        mega = false
+    end
+
+    if n < 0 then
+        n = -n
+        neg = true
+    else
+        neg = false
+    end
+
+    local s = tostring(math.floor(n + 0.5))
+    local s2 = ""
+    local l = string.len(s)
+    local i = l + 1
+
+    while i > 4 do
+        i = i - 3
+        s2 = thousands_separator .. string.sub(s, i, i + 2) .. s2
+    end
+
+    if i > 1 then
+        s2 = string.sub(s, 1, i - 1) .. s2
+    end
+
+    if mega then
+        s2 = s2 .. "M$"
+    else
+        s2 = s2 .. "$"
+    end
+
+    if neg then
+        return ("-" .. s2)
+    else
+        return (s2)
+    end
 end
 
 --------------------------------------------------------------------------------------
-local function build_bar( player )
-	local gui_parent = mod_gui.get_button_flow(player)
-	local gui1 = gui_parent.flw_blkmkt
-	
-	if gui1 == nil then
-		local player_mem = storage.player_mem[player.index]
-		-- debug_print("create gui player" .. player.name)
-		gui1 = gui_parent.add({type = "flow", name = "flw_blkmkt", direction = "horizontal", style = "horizontal_flow_blkmkt_style"})
-		gui1.add({type = "sprite-button", name = "but_blkmkt_main", sprite = "sprite_main_blkmkt", style = "sprite_main_blkmkt_style"})				
-		player_mem.but_blkmkt_credits = gui1.add({type = "button", name = "but_blkmkt_credits", caption = format_money(0), style = "button_blkmkt_credits_style"})				
-	end
-end
-
---------------------------------------------------------------------------------------
-local function update_bar( player )
-	local player_mem = storage.player_mem[player.index]
-	
-	if player_mem.cursor_name == nil or storage.prices_computed or not player_mem.but_blkmkt_credits.caption == nil then
-		local force_mem = storage.force_mem[player.force.name]
-		player_mem.but_blkmkt_credits.caption = format_money(force_mem.credits)
-	else
-		local price = storage.prices[player_mem.cursor_name]
-		if price == nil then 
-			player_mem.but_blkmkt_credits.caption = "=NONE"
-		else
-			player_mem.but_blkmkt_credits.caption = "~" .. format_money(price.current) .. " " .. format_evolution(price.evolution)
-			-- debug_print("~:",price.current)
-		end
-	end
-end
-
---------------------------------------------------------------------------------------
-local function update_bars( force )
-	for _, player in pairs(force.players) do
-		if player.connected then
-			update_bar(player)
-		end
-	end
-end
-
---------------------------------------------------------------------------------------
-local function build_menu_gen( player, player_mem, open_or_close )
-	local gui_parent = mod_gui.get_frame_flow(player)
-	if open_or_close == nil then
-		open_or_close = (gui_parent.frm_blkmkt_gen == nil)
-	end
-	
-	if gui_parent.frm_blkmkt_gen then
-		gui_parent.frm_blkmkt_gen.destroy()
-	end
-	
-	if open_or_close and not storage.prices_computed then
-		local gui1, gui2, gui3
-		gui1 = gui_parent.add({type = "frame", name = "frm_blkmkt_gen", caption = {"blkmkt-gui-blkmkt"}, style = "frame_blkmkt_style"})
-		gui1 = gui1.add({type = "flow", name = "flw_blkmkt_gen", direction = "vertical", style = "vertical_flow_blkmkt_style"})
-		
-		gui2 = gui1.add({type = "flow", direction = "horizontal", style = "horizontal_flow_blkmkt_style"})
-		gui2.add({type = "label", caption = {"blkmkt-gui-gen-prices"}, style = "label_blkmkt_style"})
-		gui2.add({type = "button", name = "but_blkmkt_gen_show_prices", caption = {"blkmkt-gui-gen-show-prices"}, 
-			tooltip = {"blkmkt-gui-gen-show-prices-tt"}, style = "button_blkmkt_style"})
-		gui2.add({type = "button", name = "but_blkmkt_gen_export_prices", caption = {"blkmkt-gui-gen-export-prices"}, 
-			tooltip = {"blkmkt-gui-gen-export-prices-tt"}, style = "button_blkmkt_style"})
-		gui2.add({type = "button", name = "but_blkmkt_gen_rescan_prices", caption = {"blkmkt-gui-gen-rescan-prices"}, 
-			tooltip = {"blkmkt-gui-gen-rescan-prices-tt"}, style = "button_blkmkt_style"})
-			
-		gui2 = gui1.add({type = "flow", direction = "horizontal", style = "horizontal_flow_blkmkt_style"})
-		player_mem.chk_blkmkt_gen_pause = gui2.add({type = "checkbox", name = "chk_blkmkt_gen_pause", caption = {"blkmkt-gui-gen-pause"}, state = false, 
-			tooltip = {"blkmkt-gui-gen-pause-tt"}, style = "checkbox_blkmkt_style"})
-		gui2.add({type = "button", name = "but_blkmkt_gen_auto_all", caption = {"blkmkt-gui-gen-auto-all"}, 
-			tooltip = {"blkmkt-gui-gen-auto-all-tt"}, style = "button_blkmkt_style"})
-		gui2.add({type = "button", name = "but_blkmkt_gen_auto_none", caption = {"blkmkt-gui-gen-auto-none"}, 
-			tooltip = {"blkmkt-gui-gen-auto-none-tt"}, style = "button_blkmkt_style"})
-			
-		gui2 = gui1.add({type = "flow", direction = "horizontal", style = "horizontal_flow_blkmkt_style"})
-		gui2.add({type = "button", name = "but_blkmkt_gen_sell_now", caption = {"blkmkt-gui-gen-sell-now"}, 
-			tooltip = {"blkmkt-gui-gen-sell-now-tt",storage.tax_rates[0]}, style = "button_blkmkt_style"})
-		gui2.add({type = "button", name = "but_blkmkt_gen_buy_now", caption = {"blkmkt-gui-gen-buy-now"}, 
-			tooltip = {"blkmkt-gui-gen-buy-now-tt",storage.tax_rates[0]}, style = "button_blkmkt_style"})
-			
-		gui2 = gui1.add({type = "flow", direction = "horizontal", style = "horizontal_flow_blkmkt_style"})
-		gui2.add({type = "button", name = "but_blkmkt_gen_period_down", caption = "<", style = "button_blkmkt_style"})
-		gui2.add({type = "button", name = "but_blkmkt_gen_period_up", caption = ">", style = "button_blkmkt_style"})
-		player_mem.lbl_blkmkt_gen_period = gui2.add({type = "label", name = "lbl_blkmkt_gen_period", caption = {"blkmkt-gui-gen-period", 0,0}, 
-			tooltip = {"blkmkt-gui-gen-period-tt"}, style = "label_blkmkt_style"})
-		gui2.add({type = "button", name = "but_blkmkt_gen_period_set", caption = {"blkmkt-gui-gen-period-set"}, 
-			tooltip = {"blkmkt-gui-gen-period-set-tt"}, style = "button_blkmkt_style"})
-
-		gui2 = gui1.add({type = "table", column_count = 2, style = "table_blkmkt_style"})
-		
-		gui2.add({type = "label", caption = {"blkmkt-gui-gen-credits"}, 
-			tooltip = {"blkmkt-gui-gen-credits-tt"}, style = "label_blkmkt_style"})
-		player_mem.lbl_blkmkt_gen_credits = gui2.add({type = "label", name = "lbl_blkmkt_gen_credits", 
-			tooltip = {"blkmkt-gui-gen-credits-tt"}, style = "label_blkmkt_style"})
-		
-		gui2.add({type = "label", caption = {"blkmkt-gui-gen-sales"}, 
-			tooltip = {"blkmkt-gui-gen-sales-tt"}, style = "label_blkmkt_style"})
-		player_mem.lbl_blkmkt_gen_sales = gui2.add({type = "label", name = "lbl_blkmkt_gen_sales", 
-			tooltip = {"blkmkt-gui-gen-sales-tt"}, style = "label_blkmkt_style"})
-		
-		gui2.add({type = "label", caption = {"blkmkt-gui-gen-sales-taxes"}, 
-			tooltip = {"blkmkt-gui-gen-sales-taxes-tt"}, style = "label_blkmkt_style"})
-		player_mem.lbl_blkmkt_gen_sales_taxes = gui2.add({type = "label", name = "lbl_blkmkt_gen_sales_taxes", 
-			tooltip = {"blkmkt-gui-gen-sales-taxes-tt"}, style = "label_blkmkt_style"})
-		
-		gui2.add({type = "label", caption = {"blkmkt-gui-gen-purchases"}, 
-			tooltip = {"blkmkt-gui-gen-purchases-tt"}, style = "label_blkmkt_style"})
-		player_mem.lbl_blkmkt_gen_purchases = gui2.add({type = "label", name = "lbl_blkmkt_gen_purchases", 
-			tooltip = {"blkmkt-gui-gen-purchases-tt"}, style = "label_blkmkt_style"})
-		
-		gui2.add({type = "label", caption = {"blkmkt-gui-gen-purchases-taxes"}, 
-			tooltip = {"blkmkt-gui-gen-purchases-taxes-tt"}, style = "label_blkmkt_style"})
-		player_mem.lbl_blkmkt_gen_purchases_taxes = gui2.add({type = "label", name = "lbl_blkmkt_gen_purchases_taxes", 
-			tooltip = {"blkmkt-gui-gen-purchases-taxes-tt"}, style = "label_blkmkt_style"})
-		
-		gui2.add({type = "label", caption = {"blkmkt-gui-gen-average-taxes"}, 
-			tooltip = {"blkmkt-gui-gen-average-taxes-tt"}, style = "label_blkmkt_style"})
-		player_mem.lbl_blkmkt_gen_tax_rate = gui2.add({type = "label", name = "lbl_blkmkt_gen_tax_rate", 
-			tooltip = {"blkmkt-gui-gen-average-taxes-tt"}, style = "label_blkmkt_style"})
-		
-		gui2.add({type = "label", caption = {"blkmkt-gui-gen-credits-lastday"}, 
-			tooltip = {"blkmkt-gui-gen-credits-lastday-tt"}, style = "label_blkmkt_style"})
-		player_mem.lbl_blkmkt_gen_credits_lastday = gui2.add({type = "label", name = "lbl_blkmkt_gen_credits_lastday", 
-			tooltip = {"blkmkt-gui-gen-credits-lastday-tt"}, style = "label_blkmkt_style"})
-		
-		gui1.add({type = "label", caption = {"blkmkt-gui-gen-transactions"}, 
-			tooltip = {"blkmkt-gui-gen-transactions-tt"}, style = "label_blkmkt_style"})
-		gui2 = gui1.add({type = "flow", name = "flw_blkmkt_gen_trans", direction = "horizontal", style = "horizontal_flow_blkmkt_style"})
-		gui2 = gui2.add({type = "scroll-pane", name = "scr_blkmkt_gen_trans", vertical_scroll_policy = "auto"})
-		gui2.style.maximal_height = 150
-		player_mem.scr_blkmkt_gen_trans = gui2
-		
-		gui1.add({type = "button", name = "but_blkmkt_gen_close", caption = {"blkmkt-gui-close"}, style = "button_blkmkt_style"})
-	end
-end
-
---------------------------------------------------------------------------------------
-local function update_menu_gen( player, player_mem )
-	local gui_parent = mod_gui.get_frame_flow(player)
-	if gui_parent.frm_blkmkt_gen == nil or storage.prices_computed then
-		return
-	end
-	
-	local force_mem = storage.force_mem[player.force.name]
-	player_mem.chk_blkmkt_gen_pause.state = force_mem.pause
-	player_mem.lbl_blkmkt_gen_period.caption = {"blkmkt-gui-gen-period", force_mem.period,storage.tax_rates[force_mem.period]}
-	
-	player_mem.lbl_blkmkt_gen_credits.caption = format_money(force_mem.credits)
-	player_mem.lbl_blkmkt_gen_sales.caption = format_money(force_mem.sales)
-	player_mem.lbl_blkmkt_gen_sales_taxes.caption = format_money(force_mem.sales_taxes)
-	player_mem.lbl_blkmkt_gen_purchases.caption = format_money(force_mem.purchases)
-	player_mem.lbl_blkmkt_gen_purchases_taxes.caption = format_money(force_mem.purchases_taxes)
-	player_mem.lbl_blkmkt_gen_tax_rate.caption = force_mem.tax_rate .. "%"
-	player_mem.lbl_blkmkt_gen_credits_lastday.caption = format_money(force_mem.credits_lastday) .. string.format(" (%+2.2f%%)", force_mem.var_lastday)
-	
-	clean_gui(player_mem.scr_blkmkt_gen_trans)
-	local gui2 = player_mem.scr_blkmkt_gen_trans.add({type = "table", name = "tab_blkmkt_gen_trans", column_count = 2, style = "table_blkmkt_style"})
-	
-	gui2.add({type = "label", caption = "name", style = "label_blkmkt_style"})
-	gui2.add({type = "label", caption = "count", style = "label_blkmkt_style"})
-	
-	for name, transaction in pairs(force_mem.transactions) do
-		-- debug_print(n, " ", name)
-		if transaction.type == "item" then
-			gui2.add({type = "sprite-button", sprite = "item/" .. name, style = "sprite_obj_blkmkt_style"})
-		elseif transaction.type == "fluid" then
-			gui2.add({type = "sprite-button", sprite = "fluid/" .. name, style = "sprite_obj_blkmkt_style"})
-		else
-			gui2.add({type = "sprite-button", sprite = "sprite_energy_blkmkt", style = "sprite_obj_blkmkt_style"})
-		end
-			
-		gui2.add({type = "label", caption = math.floor(transaction.count), style = "label_blkmkt_style"})
-	end
-end
-
---------------------------------------------------------------------------------------
-local function build_menu_trader( player, player_mem, open_or_close )
-	local gui_parent = mod_gui.get_frame_flow(player)
-	if open_or_close == nil then
-		open_or_close = (gui_parent.frm_blkmkt_trader == nil)
-	end
-	
-	if gui_parent.frm_blkmkt_trader then
-		gui_parent.frm_blkmkt_trader.destroy()
-		player_mem.frm_blkmkt_trader = nil
-	end
-	
-	if open_or_close and not storage.prices_computed then
-		local trader = player_mem.opened_trader
-		local gui1, gui2, gui3
-		gui1 = gui_parent.add({type = "frame", name = "frm_blkmkt_trader", style = "frame_blkmkt_style"})
-		player_mem.frm_blkmkt_trader = gui1
-		gui1 = gui1.add({type = "flow", name = "flw_blkmkt_trader", direction = "vertical", style = "vertical_flow_blkmkt_style"})
-		
-		gui2 = gui1.add({type = "flow", direction = "horizontal", style = "horizontal_flow_blkmkt_style"})
-		player_mem.chk_blkmkt_trader_auto = gui2.add({type = "checkbox", name = "chk_blkmkt_trader_auto", caption = {"blkmkt-gui-trader-auto"}, state = false, 
-			tooltip = {"blkmkt-gui-trader-auto-tt"}, style = "checkbox_blkmkt_style"})
-		if trader.sell_or_buy then
-			gui2.add({type = "button", name = "but_blkmkt_trader_now", caption = {"blkmkt-gui-trader-sell-now"}, 
-				tooltip = {"blkmkt-gui-trader-sell-now-tt",storage.tax_rates[0]}, style = "button_blkmkt_style"})
-		else
-			gui2.add({type = "button", name = "but_blkmkt_trader_now", caption = {"blkmkt-gui-trader-buy-now"}, 
-				tooltip = {"blkmkt-gui-trader-buy-now-tt",storage.tax_rates[0]}, style = "button_blkmkt_style"})
-		end
-		
-		-- if trader.sell_or_buy and trader.type == trader_type.energy then
-			-- player_mem.chk_blkmkt_trader_daylight = gui2.add({type = "checkbox", name = "chk_blkmkt_trader_daylight", caption = {"blkmkt-gui-trader-daylight"}, state = false, 
-				-- tooltip = {"blkmkt-gui-trader-daylight-tt"}, style = "checkbox_blkmkt_style"})
-		-- end
-		
-		gui2 = gui1.add({type = "flow", direction = "horizontal", style = "horizontal_flow_blkmkt_style"})
-		gui2.add({type = "button", name = "but_blkmkt_trader_period_down", caption = "<", style = "button_blkmkt_style"})
-		gui2.add({type = "button", name = "but_blkmkt_trader_period_up", caption = ">", style = "button_blkmkt_style"})
-		player_mem.lbl_blkmkt_trader_period = gui2.add({type = "label", name = "lbl_blkmkt_trader_period", caption = {"blkmkt-gui-trader-period", 0,0}, 
-			tooltip = {"blkmkt-gui-trader-period-tt"}, style = "label_blkmkt_style"})
-		
-		gui2 = gui1.add({type = "table", column_count = 2, style = "table_blkmkt_style"})
-		
-		gui2.add({type = "label", caption = {"blkmkt-gui-trader-money-tot"}, 
-			tooltip = {"blkmkt-gui-trader-money-tot-tt"}, style = "label_blkmkt_style"})
-		player_mem.lbl_blkmkt_trader_money_tot = gui2.add({type = "label", name = "lbl_blkmkt_trader_money_tot", 
-			tooltip = {"blkmkt-gui-trader-money-tot-tt"}, style = "label_blkmkt_style"})
-		
-		gui2.add({type = "label", caption = {"blkmkt-gui-trader-taxes-tot"}, 
-			tooltip = {"blkmkt-gui-trader-taxes-tot-tt"}, style = "label_blkmkt_style"})
-		player_mem.lbl_blkmkt_trader_taxes_tot = gui2.add({type = "label", name = "lbl_blkmkt_trader_taxes_tot", 
-			tooltip = {"blkmkt-gui-trader-taxes-tot-tt"}, style = "label_blkmkt_style"})
-		
-		gui2.add({type = "label", caption = {"blkmkt-gui-trader-money-period"}, 
-			tooltip = {"blkmkt-gui-trader-money-period-tt"}, style = "label_blkmkt_style"})
-		player_mem.lbl_blkmkt_trader_money_period = gui2.add({type = "label", name = "lbl_blkmkt_trader_money_period", 
-			tooltip = {"blkmkt-gui-trader-money-period-tt"}, style = "label_blkmkt_style"})
-		
-		gui2.add({type = "button", name = "but_blkmkt_trader_reset", caption = {"blkmkt-gui-trader-reset"}, style = "button_blkmkt_style"})
-		player_mem.lbl_blkmkt_trader_dhour = gui2.add({type = "label", name = "lbl_blkmkt_trader_dhour", 
-			tooltip = {"blkmkt-gui-trader-hours-tt"}, style = "label_blkmkt_style"})
-		
-		gui2.add({type = "label", caption = {"blkmkt-gui-trader-money"}, 
-			tooltip = {"blkmkt-gui-trader-money-tt"}, style = "label_blkmkt_style"})
-		player_mem.lbl_blkmkt_trader_money = gui2.add({type = "label", name = "lbl_blkmkt_trader_money", 
-			tooltip = {"blkmkt-gui-trader-money-tt"}, style = "label_blkmkt_style"})
-		
-		gui2.add({type = "label", caption = {"blkmkt-gui-trader-taxes"}, 
-			tooltip = {"blkmkt-gui-trader-taxes-tt"}, style = "label_blkmkt_style"})
-		player_mem.lbl_blkmkt_trader_taxes = gui2.add({type = "label", name = "lbl_blkmkt_trader_taxes", 
-			tooltip = {"blkmkt-gui-trader-taxes-tt"}, style = "label_blkmkt_style"})
-		
-		gui2.add({type = "label", caption = {"blkmkt-gui-trader-money-average"}, 
-			tooltip = {"blkmkt-gui-trader-money-average-tt"}, style = "label_blkmkt_style"})
-		player_mem.lbl_blkmkt_trader_money_average = gui2.add({type = "label", name = "lbl_blkmkt_trader_money_average", 
-			tooltip = {"blkmkt-gui-trader-money-average-tt"}, style = "label_blkmkt_style"})
-
-		player_mem.but_blkmkt_trader_evaluate =  gui2.add({type = "button", name = "but_blkmkt_trader_evaluate", caption = {"blkmkt-gui-trader-evaluate"}, 
-			tooltip = {"blkmkt-gui-trader-evaluate-tt"}, style = "button_blkmkt_style"})
-		player_mem.lbl_blkmkt_trader_evaluation = gui2.add({type = "label", name = "lbl_blkmkt_trader_evaluation", 
-			tooltip = {"blkmkt-gui-trader-evaluation-tt"}, style = "label_blkmkt_style"})
-
-		-- gui2.add({type = "label", caption = {"blkmkt-gui-trader-price"}, 
-			-- tooltip = {"blkmkt-gui-trader-price-tt"}, style = "label_blkmkt_style"})
-		-- player_mem.lbl_blkmkt_trader_price = gui2.add({type = "label", name = "lbl_blkmkt_trader_price", 
-			-- tooltip = {"blkmkt-gui-trader-price-tt"}, style = "label_blkmkt_style"})
-
-		if trader.sell_or_buy then
-			gui2.add({type = "label", caption = {"blkmkt-gui-trader-sold"}, 
-				tooltip = {"blkmkt-gui-trader-sold-tt"}, style = "label_blkmkt_style"})
-			gui3 = gui2.add({type = "flow", direction = "horizontal", style = "horizontal_flow_blkmkt_style"})
-			player_mem.but_blkmkt_trader_sold = gui3.add({type = "sprite-button", name = "but_blkmkt_trader_sold", 
-				tooltip = {"blkmkt-gui-trader-sold-tt"}, style = "sprite_obj_blkmkt_style"})
-			player_mem.lbl_blkmkt_trader_sold = gui3.add({type = "label", name = "lbl_blkmkt_trader_sold", 
-				tooltip = {"blkmkt-gui-trader-price-tt"}, style = "label_blkmkt_style"})
-		else
-			if trader.type == trader_type.item then
-				-- gui2 = gui1.add({type = "flow", direction = "horizontal", style = "horizontal_flow_blkmkt_style"})
-				gui2.add({type = "button", name = "but_blkmkt_trader_new", caption = {"blkmkt-gui-trader-new"}, style = "button_blkmkt_style"})
-				gui2.add({type = "button", name = "but_blkmkt_trader_wipe", caption = {"blkmkt-gui-trader-wipe"}, style = "button_blkmkt_style"})
-			end
-			
-			gui2.add({type = "label", caption = {"blkmkt-gui-trader-orders"}, 
-				tooltip = {"blkmkt-gui-trader-orders-tt"}, style = "label_blkmkt_style"})
-			player_mem.lbl_blkmkt_trader_orders = gui2.add({type = "label", name = "lbl_blkmkt_trader_orders", 
-				tooltip = {"blkmkt-gui-trader-orders-tt"}, style = "label_blkmkt_style"})
-				
-			gui2 = gui1.add({type = "flow", name = "flw_blkmkt_trader_orders", direction = "horizontal", style = "horizontal_flow_blkmkt_style"})
-			gui2 = gui2.add({type = "scroll-pane", name = "scr_blkmkt_trader_orders", vertical_scroll_policy = "auto"})
-			gui2.style.maximal_height = 150
-			player_mem.scr_blkmkt_trader_orders = gui2
-		end
-	end
-end
-
---------------------------------------------------------------------------------------
-local function update_menu_trader( player, player_mem, update_orders )
-	local gui_parent = mod_gui.get_frame_flow(player)
-	if gui_parent.frm_blkmkt_trader == nil or storage.prices_computed then
-		return
-	end
-	
-	if player_mem == nil then
-		player_mem = storage.player_mem[player.index]
-	end
-	
-	local trader = player_mem.opened_trader
-	
-	if trader.sell_or_buy then
-		player_mem.frm_blkmkt_trader.caption = {"blkmkt-gui-trader-sell"}
-	else
-		player_mem.frm_blkmkt_trader.caption = {"blkmkt-gui-trader-buy"}
-	end
-	player_mem.chk_blkmkt_trader_auto.state = trader.auto
-	-- if trader.sell_or_buy and trader.type == trader_type.energy then
-		-- player_mem.chk_blkmkt_trader_daylight.state = trader.daylight
-	-- end
-		
-	player_mem.lbl_blkmkt_trader_period.caption = {"blkmkt-gui-trader-period", trader.period,storage.tax_rates[trader.period]}
-	
-	player_mem.lbl_blkmkt_trader_money_tot.caption = format_money(trader.money_tot)
-	player_mem.lbl_blkmkt_trader_taxes_tot.caption = format_money(trader.taxes_tot) .. " (" .. trader.tax_rate_tot .. "%)"
-	player_mem.lbl_blkmkt_trader_money_period.caption = format_money(trader.money_period)
-	player_mem.lbl_blkmkt_trader_dhour.caption = {"blkmkt-gui-trader-hours", trader.period*math.floor(trader.dhour/trader.period)}
-	player_mem.lbl_blkmkt_trader_money.caption = format_money(trader.money)
-	player_mem.lbl_blkmkt_trader_taxes.caption = format_money(trader.taxes) .. " (" .. trader.tax_rate .. "%)"
-	player_mem.lbl_blkmkt_trader_money_average.caption = {"blkmkt-gui-trader-perday", format_money(trader.money_average)}
-	
-	player_mem.lbl_blkmkt_trader_evaluation.caption = format_money(trader.evaluation) 
-	-- if trader.price then
-		-- player_mem.lbl_blkmkt_trader_price.caption = format_money(trader.price.current) .. " " .. format_evolution(trader.price.evolution)
-	-- else
-		-- player_mem.lbl_blkmkt_trader_price.caption = "-"
-	-- end
-	
-	if trader.sell_or_buy then
-		local sold_name = trader.sold_name
-		if sold_name then
-			local multiplier = 1
-			if trader.type == trader_type.item then
-				if trader.sold_quality then
-					multiplier = get_quality_multiplier(trader.sold_quality)
-				end
-				player_mem.but_blkmkt_trader_sold.sprite = "item/" .. sold_name
-				player_mem.but_blkmkt_trader_sold.tooltip = prototypes.get_item_filtered({})[sold_name].localised_name
-			elseif trader.type == trader_type.fluid then
-				player_mem.but_blkmkt_trader_sold.sprite = "fluid/" .. sold_name
-				player_mem.but_blkmkt_trader_sold.tooltip = prototypes.get_fluid_filtered({})[sold_name].localised_name
-			else 
-				player_mem.but_blkmkt_trader_sold.sprite = "sprite_energy_blkmkt"
-				player_mem.but_blkmkt_trader_sold.tooltip = {"blkmkt-gui-energy"}
-			end
-			local price = storage.prices[sold_name]
-			if price then
-				player_mem.lbl_blkmkt_trader_sold.caption = " " .. format_money(price.current * multiplier) .. " " .. format_evolution(price.evolution)
-			else
-				player_mem.lbl_blkmkt_trader_sold.caption = " -"
-			end
-		else
-			player_mem.but_blkmkt_trader_sold.sprite = "" 
-			player_mem.lbl_blkmkt_trader_sold.caption = " -"
-		end
-	else
-		player_mem.lbl_blkmkt_trader_orders.caption = format_money(trader.orders_tot)
-				
-		if update_orders then
-			clean_gui(player_mem.scr_blkmkt_trader_orders)
-			local gui2
-			if has_quality and trader.type == trader_type.item then
-				gui2 = player_mem.scr_blkmkt_trader_orders.add({type = "table", name = "tab_blkmkt_trader_orders", column_count = 5, style = "table_blkmkt_style"})
-			else
-				gui2 = player_mem.scr_blkmkt_trader_orders.add({type = "table", name = "tab_blkmkt_trader_orders", column_count = 4, style = "table_blkmkt_style"})
-			end
-			
-			gui2.add({type = "label"})
-			gui2.add({type = "label", caption = "name", style = "label_blkmkt_style"})
-			gui2.add({type = "label", caption = "count", style = "label_blkmkt_style"})
-			gui2.add({type = "label", caption = "price", style = "label_blkmkt_style"})
-			if has_quality and trader.type == trader_type.item then
-				gui2.add({type = "label", caption = "quality", style = "label_blkmkt_style"})
-			end
-
-			function add_order(n,prefix,name,count,quality,del_but)
-				local price = storage.prices[name]
-				local current, evol
-				if price and quality then
-					current = price.current * get_quality_multiplier(quality)
-					evol = price.evolution
-				elseif price then
-					current = price.current
-					evol = price.evolution
-				else
-					current = 0
-					evol = 0
-				end
-				
-				if del_but then
-					gui2.add({type = "button", name = "but_blkmkt_ord_" .. string.format("%4d",n) .. name, caption = "X", style = "button_blkmkt_style"})
-				else
-					gui2.add({type = "label", style = "label_blkmkt_style"})
-				end
-				
-				if prefix == nil then
-					gui2.add({type = "sprite-button", name = "but_blkmkt_ori_" .. string.format("%4d",n) .. name, sprite = "sprite_energy_blkmkt", style = "sprite_obj_blkmkt_style"})
-				else
-					gui2.add({type = "sprite-button", name = "but_blkmkt_ori_" .. string.format("%4d",n) .. name, sprite = prefix .. name, style = "sprite_obj_blkmkt_style"})
-				end
-
-				gui2.add({type = "textfield", name = "but_blkmkt_orc_" .. string.format("%4d",n) .. name, text = count, style = "textfield_blkmkt_style"})
-				gui2.add({type = "label", caption = format_money(current) .. " " .. format_evolution(evol), style = "label_blkmkt_style"})
-
-				if has_quality and quality then
-					gui3 = gui2.add({type = "drop-down", name = "dpn_blkmkt_qlt_" .. string.format("%4d",n) .. name})
-
-					for _, proto in ipairs(quality_list) do
-						gui3.add_item(proto.localised_name)
-					end
-
-					gui3.selected_index = quality_list[quality_lookup_by_level[quality - 1]] or 1
-				end
-			end
-
-			if trader.type == trader_type.item then
-				for n, order in pairs(trader.orders) do
-					if n > 99 then break end
-					add_order(n,"item/",order.name,order.count,order.quality,true)
-				end
-			elseif trader.type == trader_type.fluid then
-				local order = trader.orders[1]
-				if order then
-					add_order(1,"fluid/",order.name,order.count,order.quality,false)
-				end
-			elseif trader.type == trader_type.energy then
-				local order = trader.orders[1]
-				if order then
-					add_order(1,nil,energy_name,order.count,order.quality,false)
-				end
-			end
-		end
-	end
-end
-
---------------------------------------------------------------------------------------
-local function build_menu_objects(player, open_or_close, ask_sel)
-	local gui_parent = mod_gui.get_frame_flow(player)
-
-	if open_or_close == nil then
-		open_or_close = (gui_parent.frm_blkmkt_itml == nil)
-	end
-	
-	if gui_parent.frm_blkmkt_itml then
-		gui_parent.frm_blkmkt_itml.destroy()
-	end
-	
-	if open_or_close and not storage.prices_computed then
-		local player_mem = storage.player_mem[player.index]
-		local main_window, item_table_holder, item_table
-		main_window = mod_gui.get_frame_flow(player).add({type = "frame", name = "frm_blkmkt_itml", caption = {"blkmkt-gui-objects-list"}, style = "frame_blkmkt_style"})
-		-- main_window = main_window.add({type = "empty-widget", ignored_by_interaction="true", name = "main_window_drag_handle", style = "flib_titlebar_drag_handle"})
-		main_window = main_window.add({type = "flow", name = "flw_blkmkt_itml", direction = "vertical", style = "vertical_flow_blkmkt_style"})
-		-- main_window.style.minimal_height = 500
-		main_window.style.minimal_width = 380
-		
-		item_table_holder = main_window.add({type = "scroll-pane", name = "scr_blkmkt_itml", vertical_scroll_policy = "auto"}) -- , style = "scroll_pane_blkmkt_style"
-		-- item_table_holder.style.maximal_height = 450
-		player_mem.scr_blkmkt_recl = item_table_holder
-		item_table = item_table_holder.add({type = "table", name = "tab_blkmkt_itml1", column_count = 6, style = "table_blkmkt_style"})
-		
-		local n = 0
-		
-		-- debug_print("group sel ", player_mem.group_sel_name)
-		
-		for name, group in pairs(storage.groups) do
-			if ask_sel == nil or ((ask_sel == "item" and group.item) or (ask_sel == "fluid" and group.fluid)) then
-				if player_mem.group_sel_name == nil then
-					player_mem.group_sel_name = name
-				end
-				item_table.add({type = "sprite-button", name = "but_blkmkt_ilg_" .. string.format("%4d",n) .. name, sprite = "item-group/" .. name, tooltip = name, style = "sprite_group_blkmkt_style"})
-				n=n+1
-			end
-		end
-		
-		item_table = item_table_holder.add({type = "scroll-pane", name = "flib_naked_scroll_pane_no_padding", vertical_scroll_policy = "auto"})
-		item_table.style.maximal_height = 200
-		item_table = item_table.add({type = "table", name = "tab_blkmkt_itml2", column_count = 10, style = "table_blkmkt_style"})
-		
-		local group = storage.groups[player_mem.group_sel_name].group
-		
-		n = 0
-		
-		if ask_sel == nil or ask_sel == "item" then
-			for name, object in pairs(prototypes.get_item_filtered({})) do
-				if object.group == group and not object.hidden and n <= 9999 then
-					local price = storage.prices[name]
-					if price then
-						item_table.add({type = "sprite-button", name = "but_blkmkt_ili_" .. string.format("%4d",n) .. name, sprite = "item/" .. name, 
-						tooltip = {"blkmkt-gui-tt-object-price",object.localised_name,format_money(price.current),format_evolution(price.evolution)}, style = "sprite_obj_blkmkt_style"})
-						n=n+1
-					end
-				end
-			end
-		end
-		
-		if ask_sel == nil or ask_sel == "fluid" then
-			for name, object in pairs(prototypes.get_fluid_filtered({})) do
-				-- debug_print("build_menu_objects ", name, " ", object.group.name, " ", object.subgroup.name )
-				if object.group == group and n <= 9999 then
-					local price = storage.prices[name]
-					if price then
-						item_table.add({type = "sprite-button", name = "but_blkmkt_ili_" .. string.format("%4d",n) .. name, sprite = "fluid/" .. name, 
-							tooltip = {"blkmkt-gui-tt-object-price",object.localised_name,format_money(price.current),format_evolution(price.evolution)}, style = "sprite_obj_blkmkt_style"})
-						n=n+1
-					end
-				end
-			end
-		end
-		
-		main_window.add({type = "button", name = "but_blkmkt_itml_refresh", caption = {"blkmkt-gui-refresh"}, style = "button_blkmkt_style"})
-
-
-		if ask_sel then
-			main_window.add({type = "button", name = "but_blkmkt_itml_cancel", caption = {"blkmkt-gui-cancel"}, style = "button_blkmkt_style"})
-		else
-			main_window.add({type = "button", name = "but_blkmkt_itml_close", caption = {"blkmkt-gui-close"}, style = "button_blkmkt_style"})
-		end
-	end
-end
-
---------------------------------------------------------------------------------------
-local function update_gui(player,update_orders)
-	if player.connected then
-		local player_mem = storage.player_mem[player.index]
-		update_bar(player)
-		update_menu_gen(player,player_mem)
-		update_menu_trader(player,player_mem,update_orders)
-		local gui_parent = mod_gui.get_frame_flow(player)
-		if gui_parent.frm_blkmkt_itml then
-			build_menu_objects(player,true,player_mem.ask_sel)
-		end
-	end
-end
-
---------------------------------------------------------------------------------------
-local function update_guis_force(force,update_orders)
-	for _, player in pairs(force.players) do
-		update_gui(player,update_orders)
-	end
-end
-
---------------------------------------------------------------------------------------
-local function update_guis(update_orders)
-	for _, player in pairs(game.players) do
-		update_gui(player,update_orders)
-	end
-end
-
---------------------------------------------------------------------------------------
-local function close_guis()
-	for _, player in pairs(game.players) do
-		if player.connected then
-			local player_mem = storage.player_mem[player.index]
-			build_menu_gen(player,player_mem,false)
-			build_menu_trader(player,player_mem,false)
-			build_menu_objects(player,false)
-		end
-	end
-end
-
---------------------------------------------------------------------------------------
-local function init_tax_rates()
-	storage.tax_rates = {}
-	
-	for _, period in ipairs(periods) do
-		if tax_enabled == true then
-			if period == 0 then
-				storage.tax_rates[period] = tax_immediate -- tax for immediate action
-			else
-				storage.tax_rates[period] = math.floor(0.5+tax_start * ((24/period) ^ tax_growth))
-			end
-		else storage.tax_rates[period] = 0 end
-	end
-	
-	for period,tax in pairs(storage.tax_rates) do
-		debug_print( "tax ", period, "h = ", tax, "%" )
-	end
+function format_evolution(evol)
+    if evol == nil or evol == 0 then
+        return ("")
+    elseif evol > 0 then
+        return ("")
+    else
+        return ("")
+    end
 end
 
 --------------------------------------------------------------------------------------
 local function update_tech_cost(tech)
-	local cost = 0
-	
-	cost = cost + #tech.research_unit_ingredients * tech.research_unit_count * tech_ingr_cost
-	cost = cost + tech.research_unit_energy * energy_cost
-	
-	storage.techs_costs[tech.name] = cost
-	
-	for _, effect in pairs(tech.prototype.effects) do
-		if effect.type == "unlock-recipe" then
-			storage.recipes_tech[effect.recipe] = tech.name
-		end
-	end
+    local cost = 0
+
+    cost = cost + #tech.research_unit_ingredients * tech.research_unit_count * tech_ingr_cost
+    cost = cost + tech.research_unit_energy * energy_cost
+
+    storage.techs_costs[tech.name] = cost
+    for _, effect in pairs(tech.prototype.effects) do
+        if effect.type == "unlock-recipe" then
+            storage.recipes_tech[effect.recipe] = tech.name
+        end
+    end
 end
 
 --------------------------------------------------------------------------------------
 local function update_techs_costs()
-	storage.techs_costs = {}
-	storage.recipes_tech = {}
-	
-	for name, tech in pairs(game.forces.player.technologies) do
-		update_tech_cost(tech)
-	end
-end
+    storage.techs_costs = {}
+    storage.recipes_tech = {}
 
---------------------------------------------------------------------------------------
-local function list_techs_costs()
-	debug_print("--------------------------------------------------------------------------------------")
-	debug_print("list_techs_costs")
-	
-	for name, cost in pairs(storage.techs_costs) do
-		debug_print("tech ", name, " = ", cost)
-	end
+    for name, tech in pairs(game.forces.player.technologies) do
+        update_tech_cost(tech)
+    end
 end
 
 --------------------------------------------------------------------------------------
 local function update_objects_prices_start()
-	if storage.prices_computed then return end
-	
-	storage.prices_computed = true
-	debug_print( "update_objects_prices_start" )
-	
-	storage.old_prices = storage.prices or {} -- to memorize old prices, and restore dynamics later
-	
-	storage.prices = {}
-	storage.orig_resources = {}
-	storage.new_resources = {}
-	storage.free_products = {}
-	storage.unknowns = {}
-	
-	local orig_resources = {}
-	local specials = {}
-	local free_products = {}
-	local regular_products = {}
-	
-	local recipes = game.forces.player.recipes
-		
-	-- energy 
-	
-	storage.prices[energy_name] = {overall=energy_price, tech=0, ingrs=0, energy=0}
-	
-	-- vanilla resources
-	
-	for name, price in pairs(vanilla_resources_prices) do
-		storage.prices[name] = {overall=price, tech=0, ingrs=0, energy=0}
-		orig_resources[name] = true
-	end
+    if storage.prices_computed then
+        return
+    end
 
-	-- special objects
+    storage.prices_computed = true
 
-	for name, price in pairs(special_prices) do
-		storage.prices[name] = {overall=price, tech=0, ingrs=0, energy=0}
-		specials[name] = true
-	end
+    storage.old_prices = storage.prices or {} -- to memorize old prices, and restore dynamics later
 
-	-- additional resources
-	
-	for name, ent in pairs(prototypes.get_entity_filtered({})) do -- raw resources, TODO: this needs some looking at
-		if ent.type == "resource" then 
-			local min_prop = ent.mineable_properties
-			if min_prop.minable and min_prop.products then -- if this object is minable give it the raw ore price
-				for _, prod in pairs(min_prop.products) do
-					if storage.prices[prod.name] == nil then
-						storage.prices[prod.name] = {overall=resource_price, tech=0, ingrs=0, energy=0}
-						orig_resources[prod.name] = true
-					end
-				end
-			end
-		end
-	end
-	
-	-- mark potential undeclared new resources (that are ingredients but never produced)
-	
-	local new_resources = {}
-	
-	for _, recipe in pairs(recipes) do
-		if recipe.ingredients ~= nil then
-			for _, ingr in pairs(recipe.ingredients) do
-				if storage.prices[ingr.name] == nil and regular_products[ingr.name] == nil and free_products[ingr.name] == nil then
-					new_resources[ingr.name] = true -- mark as possible resource
-				end
-			end
-		end
-	end
-	
-	regular_products = nil
+    storage.prices = {}
+    storage.orig_resources = {}
+    storage.new_resources = {}
+    storage.free_products = {}
+    storage.unknowns = {}
+    local orig_resources = {}
+    local specials = {}
+    local free_products = {}
+    local regular_products = {}
 
-	storage.orig_resources = orig_resources
-	storage.specials = specials
-	storage.new_resources = new_resources
-	storage.free_products = free_products
+    local recipes = game.forces.player.recipes
+
+    -- energy
+    storage.prices[energy_name] = { overall = energy_price, tech = 0, ingrs = 0, energy = 0 }
+
+    -- vanilla resources
+
+    for name, price in pairs(vanilla_resources_prices) do
+        storage.prices[name] = { overall = price, tech = 0, ingrs = 0, energy = 0 }
+        orig_resources[name] = true
+    end
+
+    -- special objects
+
+    for name, price in pairs(special_prices) do
+        storage.prices[name] = { overall = price, tech = 0, ingrs = 0, energy = 0 }
+        specials[name] = true
+    end
+
+    -- additional resources
+
+    for name, ent in pairs(prototypes.get_entity_filtered({})) do
+        -- raw resources
+        if ent.type == "resource" then
+            local min_prop = ent.mineable_properties
+            if min_prop.minable and min_prop.products then
+                -- if this object is minable give it the raw ore price
+                for _, prod in pairs(min_prop.products) do
+                    if storage.prices[prod.name] == nil then
+                        storage.prices[prod.name] = { overall = resource_price, tech = 0, ingrs = 0, energy = 0 }
+                        orig_resources[prod.name] = true
+                    end
+                end
+            end
+        end
+    end
+
+    -- mark potential undeclared new resources (that are ingredients but never produced)
+
+    local new_resources = {}
+
+    for _, recipe in pairs(recipes) do
+        if recipe.ingredients ~= nil then
+            for _, ingr in pairs(recipe.ingredients) do
+                if storage.prices[ingr.name] == nil and regular_products[ingr.name] == nil and free_products[ingr.name] == nil then
+                    new_resources[ingr.name] = true -- mark as possible resource
+                end
+            end
+        end
+    end
+
+    regular_products = nil
+
+    storage.orig_resources = orig_resources
+    storage.specials = specials
+    storage.new_resources = new_resources
+    storage.free_products = free_products
 end
 
+--------------------------------------------------------------------------------------
 local function compute_recipe_purity(recipe_name, item_name)
-	local recipe = game.forces.player.recipes[recipe_name]
+    local recipe = game.forces.player.recipes[recipe_name]
 
-	local other_amount = 0 -- the other stuff that the recipe produces
-	local ingredient_amount = 0 -- the stuff we are actually trying to solve for
+    local other_amount = 0      -- the other stuff that the recipe produces
+    local ingredient_amount = 0 -- the stuff we are actually trying to solve for
+    if recipe then
+        table.for_each(recipe.products, function(product)
+            -- here we categorize each of the recipes products into product or other
+            if product.name == item_name then
+                if product.amount ~= nil then
+                    ingredient_amount = ingredient_amount + product.amount
+                elseif product.amount_min and product.amount_max and product.probability then
+                    ingredient_amount = ingredient_amount +
+                            (product.amount_min + product.amount_max) / 2 * product.probability
+                end
+            elseif product.amount ~= nil then
+                -- if its an other we still need to check if its a probability or an amount
+                other_amount = other_amount + product.amount
+            elseif product.amount_min and product.amount_max and product.probability then
+                other_amount = other_amount + (product.amount_min + product.amount_max) / 2 * product.probability
+            end
+        end)
 
-	table.for_each(recipe.products, function(product)
-		-- here we categorize each of the recipes products into product or other
-		if product.name == item_name then
-			if product.amount ~= nil then
-				ingredient_amount = ingredient_amount + product.amount
-			elseif product.amount_min and product.amount_max and product.probability then
-				ingredient_amount = ingredient_amount + (product.amount_min + product.amount_max) /2 * product.probability
-			end
-		elseif product.amount ~= nil then -- if its an other we still need to check if its a probability or an amount
-			other_amount = other_amount + product.amount
-		elseif product.amount_min and product.amount_max and product.probability then
-			other_amount = other_amount + (product.amount_min + product.amount_max) /2 * product.probability
-		end
-	end)
+    end
 
-	-- cant divide by 0
-	if other_amount == 0 then other_amount = 1 end
-	
-	-- if this is the new best recipe then store it
-	local purity = ingredient_amount/other_amount
+    -- cant divide by 0
+    if other_amount == 0 then
+        other_amount = 1
+    end
 
-	return purity
+    -- if this is the new best recipe then store it
+    local purity = ingredient_amount / other_amount
+
+    return purity
 end
 
 ---convenience function that sets an item's price to the default and optionally logs it
@@ -868,2089 +321,1652 @@ end
 ---@param reason string @*optional*
 ---@return table the price entry that was set for this item
 local function item_cost_unknown(item_name, reason)
-	if unknown_price_reason_logging == true and reason ~= nil then
-		pcall(helpers.write_file,price_log, "< "..item_name.." > "..reason.."\n", true)
-	end
-	storage.prices[item_name] = {overall = unknown_price, tech = 0, ingrs = 0, energy = 0}
-	return storage.prices[item_name]
+    if unknown_price_reason_logging == true and reason ~= nil then
+        pcall(helpers.write_file, price_log, "< " .. item_name .. " > " .. reason .. "\n", true)
+    end
+    storage.prices[item_name] = { overall = unknown_price, tech = 0, ingrs = 0, energy = 0 }
+    return storage.prices[item_name]
 end
 
+--------------------------------------------------------------------------------------
 local function compute_item_cost(item_name, loops, recipes_used)
-	loops = (loops or 0) + 1
-	recipes_used = recipes_used or {}
+    loops = (loops or 0) + 1
+    recipes_used = recipes_used or {}
 
-	-- if this is an uncraftable item then we just assume its a raw/unknown
-	if storage.item_recipes[item_name] == nil then
-		return item_cost_unknown(item_name,"no recipe")
-	elseif loops > recipe_depth_maximum then
-		return item_cost_unknown(item_name, "recipe_depth_maximum exceeded")
-	end
-	
-	-- grab the item's recipe
-	local recipe_name = storage.item_recipes[item_name].recipe
-	local recipe = game.forces.player.recipes[recipe_name]
+    -- if this is an uncraftable item then we just assume its a raw/unknown
+    if storage.item_recipes[item_name] == nil then
+        return item_cost_unknown(item_name, "no recipe")
+    elseif loops > recipe_depth_maximum then
+        return item_cost_unknown(item_name, "recipe_depth_maximum exceeded")
+    end
 
-	for _, recipe_used in pairs(recipes_used) do
-		if recipe_used == recipe_name then
-			return item_cost_unknown(item_name, "recipe_name in recipes_used")
-		end
-	end
-	recipes_used[#recipes_used+1] = recipe_name
+    -- grab the item's recipe
+    local recipe_name = storage.item_recipes[item_name].recipe
+    local recipe = game.forces.player.recipes[recipe_name]
 
-	-- iterate through ingredients and make sure they have a set cost
-	for _, ingredient in pairs(recipe.ingredients) do
-		if storage.prices[ingredient.name] ~= nil then -- do we know the price already?
-			-- we can move on to the next ingredient
-			
-		elseif storage.item_recipes[ingredient.name] ~= nil and storage.item_recipes[ingredient.name].recipe ~= nil then -- if not and we have a recipe for the ingredient then loop through and calculate it based on ingredients
-			compute_item_cost(ingredient.name, loops, recipes_used)
+    for _, recipe_used in pairs(recipes_used) do
+        if recipe_used == recipe_name then
+            return item_cost_unknown(item_name, "recipe_name in recipes_used")
+        end
+    end
+    recipes_used[#recipes_used + 1] = recipe_name
 
-		else -- unknown raw mats
-			item_cost_unknown(ingredient.name, "ingredient has no price or recipe")
-		end
-	end
+    -- iterate through ingredients and make sure they have a set cost
+    for _, ingredient in pairs(recipe.ingredients) do
+        if storage.prices[ingredient.name] ~= nil then
+            -- do we know the price already?
+            -- we can move on to the next ingredient
+        elseif storage.item_recipes[ingredient.name] ~= nil and storage.item_recipes[ingredient.name].recipe ~= nil then
+            -- if not and we have a recipe for the ingredient then loop through and calculate it based on ingredients
+            compute_item_cost(ingredient.name, loops, recipes_used)
+        else
+            -- unknown raw mats
+            item_cost_unknown(ingredient.name, "ingredient has no price or recipe")
+        end
+    end
 
-	-- okay we now know that the price of the ingredients are in the prices table, so now we can just add em up
-	local ingredients_cost = 0
-	for _, ingredient in pairs(recipe.ingredients) do
-		if storage.prices[ingredient.name] == nil then compute_item_cost(ingredient.name, loops, recipes_used) end
-		ingredients_cost = ingredients_cost + ingredient.amount * storage.prices[ingredient.name].overall
-	end
+    -- okay we now know that the price of the ingredients are in the prices table, so now we can just add em up
+    local ingredients_cost = 0
+    for _, ingredient in pairs(recipe.ingredients) do
+        if storage.prices[ingredient.name] == nil then
+            compute_item_cost(ingredient.name, loops, recipes_used)
+        end
+        ingredients_cost = ingredients_cost + ingredient.amount * storage.prices[ingredient.name].overall
+    end
 
-	-- compute tech cost
-	local tech_cost = 0
-	local tech_name = storage.recipes_tech[recipe.name]
-	if tech_name then
-		if storage.techs_costs[tech_name] then
-			tech_cost = storage.techs_costs[tech_name] * tech_amortization
-		end
-	end
+    -- compute tech cost
+    local tech_cost = 0
+    local tech_name = storage.recipes_tech[recipe.name]
+    if tech_name then
+        if storage.techs_costs[tech_name] then
+            tech_cost = storage.techs_costs[tech_name] * tech_amortization
+        end
+    end
 
-	-- count the amount of product we are making in this recipe
-	local product_amount = 0
-	for _, product in pairs(recipe.products) do
-		if product.name == item_name then
-			if product.amount then
-				product_amount = product.amount
-			elseif product.amount_min and product.amount_max and product.probability then
-				product_amount = (product.amount_min + product.amount_max) /2 * product.probability
-			end
-		end
-	end
+    -- count the amount of product we are making in this recipe
+    local product_amount = 0
+    for _, product in pairs(recipe.products) do
+        if product.name == item_name then
+            if product.amount then
+                product_amount = product.amount
+            elseif product.amount_min and product.amount_max and product.probability then
+                product_amount = (product.amount_min + product.amount_max) / 2 * product.probability
+            end
+        end
+    end
 
-	-- calculate energy cost
-	local energy_cost = recipe.energy * energy_cost
+    -- calculate energy cost
+    local energy_cost = recipe.energy * energy_cost
 
-	-- enter cost of ingredient
-	if product_amount == 0 then
-		-- sometimes, probability can be 0, leading to total amount = 0
-		item_cost_unknown(item_name, "product_amount == 0")
-	else
-		local tech_total = math.floor(tech_cost)
-		local ingrs_total = math.floor(ingredients_cost / product_amount+0.5)
-		local energy_total = math.floor(energy_cost / product_amount+0.5)
-		price = (tech_total + ingrs_total + energy_total) * (1+commercial_margin)
-		storage.prices[item_name] = {
-			overall = math.floor(price),
-			tech = tech_total,
-			ingrs = ingrs_total,
-			energy = energy_total
-		}
-	end
-	return (storage.prices[item_name])
+    -- enter cost of ingredient
+    if product_amount == 0 then
+        -- sometimes, probability can be 0, leading to total amount = 0
+        item_cost_unknown(item_name, "product_amount == 0")
+    else
+        local tech_total = math.floor(tech_cost)
+        local ingrs_total = math.floor(ingredients_cost / product_amount + 0.5)
+        local energy_total = math.floor(energy_cost / product_amount + 0.5)
+        price = (tech_total + ingrs_total + energy_total) * (1 + 0.10)
+        storage.prices[item_name] = {
+            overall = math.floor(price),
+            tech = tech_total,
+            ingrs = ingrs_total,
+            energy = energy_total
+        }
+    end
+    return (storage.prices[item_name])
 end
 
 --------------------------------------------------------------------------------------
 local function update_objects_prices()
+    -- item_recipes looks like {..., item_name = {name, recipe_name}}
 
-	-- item_recipes looks like {..., item_name = {name, recipe_name}}
+    --  this links items (products) to their recipe(s)
+    for _, recipe in pairs(game.forces.player.recipes) do
+        for _, product in pairs(recipe.products) do
+            if game.forces.player.recipes[product.name] ~= nil then
+                -- if we can find a direct recipe match for the item then we don't need to do fancy match
+                item_recipe = { name = product.name, recipe = product.name }
+            else
+                -- recipe matching, the filters avoid recipes that cause issues for the cost computer
+                item_recipe = storage.item_recipes[product.name] or { name = product.name, recipe = nil }
+                -- item_recipe is the most pure recipe for product
 
-	--  this links items (products) to their recipe(s)
-	for _, recipe in pairs(game.forces.player.recipes) do
-		for _, product in pairs(recipe.products) do
+                if item_recipe.recipe ~= nil then
+                    local old_purity = compute_recipe_purity(item_recipe.recipe, product.name)
 
-			if game.forces.player.recipes[product.name] ~= nil then -- if we can find a direct recipe match for the item then we don't need to do fancy match
-				item_recipe = {name = product.name, recipe = product.name}
-			else -- recipe matching, the filters avoid recipes that cause issues for the cost computer
-				item_recipe = storage.item_recipes[product.name] or {name = product.name, recipe = nil}
-				-- item_recipe is the most pure recipe for product
+                    local new_purity = compute_recipe_purity(recipe.name, product.name)
 
-				if item_recipe.recipe ~= nil then 
-					local old_purity = compute_recipe_purity(item_recipe.recipe, product.name)
-					
-					local new_purity = compute_recipe_purity(recipe.name, product.name)
+                    -- recipe filters here, the recipes we don't want
 
-					-- recipe filters here, the recipes we don't want
+                    -- such as fluid barreling recipes
+                    local isBarrel = false
+                    if string.match(recipe.name, "barrel") and not string.match(product.name, "barrel") then
+                        isBarrel = true
+                    end
 
-					-- such as fluid barreling recipes
-					local isBarrel = false
-					if string.match(recipe.name, "barrel") and not string.match(product.name, "barrel") then
-						isBarrel = true end
+                    -- or recipes with catalysts
+                    local hasCatalyst = false
+                    table.for_each(game.forces.player.recipes[recipe.name].products, function(product)
+                        -- if the recipe just straight up tells us
+                        if product.catalyst_amount ~= nil and product.catalyst_amount > 0 then
+                            hasCatalyst = true
+                            -- otherwise check for name matches
+                        else
+                            table.for_each(game.forces.player.recipes[recipe.name].ingredients, function(ingr)
+                                if ingr.name == product.name then
+                                    hasCatalyst = true
+                                end
+                            end)
+                        end
+                    end)
 
-					-- or recipes with catalysts
-					local hasCatalyst = false
-					table.for_each(game.forces.player.recipes[recipe.name].products, function(product)
-						-- if the recipe just straight up tells us
-						if product.catalyst_amount ~= nil and product.catalyst_amount > 0 then hasCatalyst = true
-						-- otherwise check for name matches
-						else table.for_each(game.forces.player.recipes[recipe.name].ingredients, function(ingr) if ingr.name == product.name then hasCatalyst = true end end)
-						end
-					end)
+                    if new_purity > old_purity and isBarrel == false and hasCatalyst == false then
+                        item_recipe.recipe = recipe.name
+                    end -- our new king passed our filters!
+                else
+                    item_recipe.recipe = recipe.name
+                end -- if there is no preexisting recipe our new one is king
+            end
 
-					if new_purity > old_purity and isBarrel == false and hasCatalyst == false then item_recipe.recipe = recipe.name end -- our new king passed our filters!
-				else item_recipe.recipe = recipe.name end -- if there is no preexisting recipe our new one is king
-			end
-			
-			storage.item_recipes[product.name] = item_recipe
-		end
-	end
+            storage.item_recipes[product.name] = item_recipe
+        end
+    end
 
-	for _, item in pairs(storage.item_recipes) do
-		if storage.prices[item.name] == nil or storage.prices[item.name].overall == nil then compute_item_cost(item.name) end
-	end
+    for _, item in pairs(storage.item_recipes) do
+        if storage.prices[item.name] == nil or storage.prices[item.name].overall == nil then
+            compute_item_cost(item.name)
+        end
+    end
 
-	-- init dynamic prices for new prices, and restore old dynamics if exists, and filter errors for bad recipes
-	
-	for name_object, price in pairs(storage.prices) do
-		local old_price = storage.old_prices[name_object]
+    -- init dynamic prices for new prices, and restore old dynamics if exists, and filter errors for bad recipes
 
-		-- filters for all the bad values that escaped
-		if price.overall == nil then price.overall = unknown_price end
-		if price.overall == math.huge then price.overall = unknown_price end
+    for name_object, price in pairs(storage.prices) do
+        local old_price = nil
 
-		-- actually dynamic stuff
-		if old_price then
-			price.dynamic = old_price.dynamic or 1
-			price.previous = old_price.previous or price.overall
-			price.evolution = old_price.evolution or 0
-		else
-			price.dynamic = 1
-			price.previous = price.overall or unknown_price
-			price.evolution = 0
-		end
-		
-		price.current = price.overall * price.dynamic
-	end
+        -- filters for all the bad values that escaped
+        if price.overall == nil then
+            price.overall = unknown_price
+        end
+        if price.overall == math.huge then
+            price.overall = unknown_price
+        end
 
-	storage.old_prices = nil
-	storage.prices_computed = false
+        -- actually dynamic stuff
+        if old_price then
+            price.dynamic = old_price.dynamic or 1
+            price.previous = old_price.previous or price.overall
+            price.evolution = old_price.evolution or 0
+        else
+            price.dynamic = 1
+            price.previous = price.overall or unknown_price
+            price.evolution = 0
+        end
 
-	-- if only_researched_items is on then remove all that arent researched
-	if only_items_researched then
-		for name, object in pairs(storage.prices) do
-			recipe = storage.item_recipes[name] or nil
-			if recipe ~= nil and game.forces.player.recipes[recipe.recipe].enabled == false then
-				storage.prices[name] = nil end
-		end
-	end
+        price.current = price.overall * price.dynamic
+    end
 
-	return true
-end
+    storage.old_prices = nil
+    storage.prices_computed = false
 
-local function multiply_prices()
-	if not (settings.global["BM2-price_multiplyer"] == nil or settings.global["BM2-price_multiplyer"].value == 1) then -- no point of multiplying prices if its just by 1 or not configured at all
-		table.for_each(storage.prices, function(price) price.current = price.current * settings.global["BM2-price_multiplyer"].value end)
-	end
-end
+    -- if only_researched_items is on then remove all that arent researched
+    if not stg_unknown_tech then
+        for name, object in pairs(storage.prices) do
+            recipe = storage.item_recipes[name] or nil
 
---------------------------------------------------------------------------------------
-local function update_dynamic_prices()
-	if storage.prices_computed then return end
-	if not dynamic_prices_enabled then return end
-	-- update dynamic prices (once per day)
-	
-	for _, price in pairs(storage.prices) do
-		
-		-- keep in range
-		if price.dynamic > dynamic_maximal then
-			price.dynamic = dynamic_maximal
-		elseif price.dynamic < dynamic_minimal then
-			price.dynamic = dynamic_minimal
-		end
-		
-		-- compute current price
-		price.current = price.overall * price.dynamic
-		
-		-- compute price evolution (without slow return)
-		price.evolution = price.current - price.previous
-		price.previous = price.current
+            if recipe ~= nil and game.forces.player.recipes[recipe.recipe].enabled == false then
+                storage.prices[name] = nil
+            end
+        end
+    end
 
-		if price.evolution == 0 then
-			-- return slowly to optimal price
-			if price.dynamic < 1 then
-				price.dynamic = math.min(price.dynamic + dynamic_regrowth,1)
-			elseif price.dynamic > 1 then
-				price.dynamic = math.max(price.dynamic - dynamic_regrowth,1)
-			end
-			
-			price.current = price.overall * price.dynamic
-			price.previous = price.current
-		end
-	end
-end
-
---------------------------------------------------------------------------------------
-local function list_prices()
-	if storage.prices_computed then return end
-	
-	debug_print("--------------------------------------------------------------------------------------")
-	debug_print("list_prices")
-	
-	for name, price in pairs(storage.prices) do
-		local recipe_name = name
-		if recipe_name then
-			debug_print("price ", name, "=", price.overall, "=", price.tech, "+", price.ingrs, "+", price.energy, " recipe=", recipe_name)
-		else
-			debug_print("price ", name, "=", price.overall, "=", price.tech, "+", price.ingrs, "+", price.energy, " recipe=NONE")
-		end
-	end
-
-	debug_print("--------------------------------------------------------------------------------------")
-	
-	for name, object in pairs(prototypes.get_item_filtered({})) do
-		local price = storage.prices[name]
-		if price == nil then
-			debug_print("item ", name, "=NONE")
-		else
-			debug_print("item ", name, "=", price.overall, "=", price.tech, "+", price.ingrs, "+", price.energy)
-		end
-	end
-	
-	for name, object in pairs(prototypes.get_fluid_filtered({})) do
-		local price = storage.prices[name]
-		if price == nil then
-			debug_print("fluid ", name, "=NONE")
-		else
-			debug_print("fluid ", name, "=", price.overall, "=", price.tech, "+", price.ingrs, "+", price.energy)
-		end
-	end
-end
-
---------------------------------------------------------------------------------------
-local function export_prices()
-	-- debug_print("export_prices")
-	
-	helpers.remove_path(prices_file)
-
-	local s = "object;recipe;techno;total price;tech cost;ingredients cost;energy cost;current;evolution" .. "\n"
-	
-	if pcall(helpers.write_file,prices_file,s,true) then
-		for name, price in pairs(storage.prices) do
-			local recipe_name = name
-			
-			if recipe_name then
-				local tech_name = storage.recipes_tech[recipe_name]
-				if recipe_name == name then recipe_name = "idem" end
-				if tech_name == nil then tech_name = "" end
-				s = name .. ";" .. recipe_name .. ";" .. tech_name .. ";" 
-					.. price.overall .. ";" .. price.tech .. ";" .. price.ingrs .. ";" .. price.energy .. ";" .. 0.1*math.floor(10*price.current) .. ";" .. 0.1*math.floor(10*price.evolution) .. "\n"
-			else
-				s = name .. ";...;;" 
-					.. price.overall .. ";" .. price.tech .. ";" .. price.ingrs .. ";" .. price.energy .. ";" .. 0.1*math.floor(10*price.current) .. ";" .. 0.1*math.floor(10*price.evolution) .. "\n"
-			end
-			helpers.write_file('BM2/e.txt',s,true)
-		end
-	end
+    return true
 end
 
 --------------------------------------------------------------------------------------
 local function update_groups()
-	-- debug_print("--------------------------------------------------------------------------------------")
-	-- debug_print("update_groups")
-	
-	-- to be run after prices list end !
-	
-	local groups = {}
-	
-	for name, object in pairs(prototypes.get_item_filtered({})) do
-		if storage.prices[name] ~= nil and not object.hidden then
-			local group_name = object.group.name
-			if groups[group_name] == nil then 
-				groups[group_name] = { group = object.group, item = true, fluid = false }
-			end
-		end
-	end
-	
-	for name, object in pairs(prototypes.get_fluid_filtered({})) do
-		if  storage.prices[name] ~= nil then
-			local group_name = object.group.name
-			if groups[group_name] == nil then 
-				groups[group_name] = { group = object.group, item = false, fluid = true }
-			else
-				groups[group_name].fluid = true
-			end
-		end
-	end
+    -- debug_print("--------------------------------------------------------------------------------------")
+    -- debug_print("update_groups")
 
-	if storage.player_mem then
-		for _, player in pairs(game.players) do
-			local player_mem = storage.player_mem[player.index]
-			if player_mem then
-				player_mem.group_sel_name = nil
-				player_mem.object_sel_name = nil
-				player_mem.ask_sel = nil
-			end
-		end
-	end
-	
-	storage.groups = groups
-end
+    -- to be run after prices list end !
 
---------------------------------------------------------------------------------------
-local function list_groups()
-	debug_print("--------------------------------------------------------------------------------------")
-	debug_print("list_groups")
-	
-	for name, group in pairs(storage.groups) do
-		debug_print("group:", name, " children=", #group.group.subgroups)
-		for _, subgroup in pairs(group.group.subgroups) do
-			debug_print("-> subgroup:", subgroup.name)
-		end
-	end
-end
+    local groups = {}
 
---------------------------------------------------------------------------------------
-local function list_recipes()
-	debug_print("--------------------------------------------------------------------------------------")
-	debug_print("list_recipes")
-	
-	for name, recipe in pairs(game.forces.player.recipes) do
-		debug_print("recipe:", name, " hidden=", recipe.hidden)
-	end
-end
+    for name, object in pairs(prototypes.get_item_filtered({})) do
+        if storage.prices[name] ~= nil and not object.hidden then
+            local group_name = object.group.name
+            if groups[group_name] == nil then
+                storage.prices[name].group = group_name
+                groups[group_name] = { group = object.group, item = true, fluid = false }
+            end
+        end
+    end
 
---------------------------------------------------------------------------------------
-local function get_hour()
-	-- refresh hour and detect hour change ; hour increases continuously, and does not reset at 24.
-	local surf = game.surfaces.nauvis
+    for name, object in pairs(prototypes.get_fluid_filtered({})) do
+        if storage.prices[name] ~= nil then
+            local group_name = object.group.name
+            if groups[group_name] == nil then
+                groups[group_name] = { group = object.group, item = false, fluid = true }
+                storage.prices[name].group = group_name
+            else
+                groups[group_name].fluid = true
+                storage.prices[name].group = group_name
+            end
+        end
+    end
 
-	if surf.always_day ~= storage.always_day then
-		storage.always_day = surf.always_day
-		storage.hour_prev = -1
-	end
-		
-	if surf.always_day then
-		storage.hour = math.floor(game.tick * 24 / 25000) -- one day is 25000 ticks, game starts at noon
-		if storage.hour ~= storage.hour_prev then
-			if storage.hour%24 == 0 then -- noon
-				storage.day = storage.day + 1
-				storage.day_changed = true
-			end
-			storage.hour_changed = 4
-			storage.hour_prev = storage.hour
-		end
-	else
-		local hour = math.floor(surf.daytime * 24) -- daytime [0,1], noon = 0.0, midnight = 0.5
-		if hour ~= storage.hour_prev then
-			if hour == 0 then -- noon
-				storage.day = storage.day + 1
-				storage.day_changed = true
-			end
-			storage.hour = 24*storage.day + hour
-			storage.hour_changed = 4
-			storage.hour_prev = hour
-		end
-	end
-end
-
---------------------------------------------------------------------------------------
-local function compute_force_data(force_mem)
-	local tot_taxes = force_mem.sales_taxes + force_mem.purchases_taxes
-	local tot = force_mem.sales + force_mem.purchases + tot_taxes
-	if tot == 0 or tax_enabled == false then
-		force_mem.tax_rate = 0
-	else
-		force_mem.tax_rate = math.floor(0.5+tot_taxes * 100 / tot)
-	end
-end
-
---------------------------------------------------------------------------------------
-local function init_trader( trader, level )
-	trader.auto = default_auto -- automatic trading
-	trader.daylight = false -- trades only during daylight (for selling accumulators)
-	trader.n_period=default_n_period
-	trader.period=periods[default_n_period]
-	
-	trader.evaluation = 0 -- gross value of trader content
-	
-	trader.money_tot = 0 -- total sales or incomes
-	trader.taxes_tot = 0 -- total taxes
-	trader.tax_rate_tot = 0 -- total average tax rate
-	
-	trader.hour = storage.hour -- hour of counter reset (initialized with last hour tick)
-	trader.dhour = 0 -- hours since last reset
-	trader.money_reset = 0 -- money at counter reset
-	trader.taxes_reset = 0 -- taxes at counter reset
-	trader.money = 0 -- sales or incomes since counter reset
-	trader.taxes = 0 -- taxes or incomes since counter reset
-	trader.tax_rate = 0 -- average tax rate
-	trader.money_average = 0 -- money per day since counter reset
-	
-	trader.hour_period = storage.hour -- starting hour of last period (used by counter reset)
-	trader.money_tot_start_period = 0 -- money at beginning of last period
-	trader.money_period = 0 -- money on last period
-	
-	trader.orders_tot = 0 -- total of the purchase list, without taxes
-	trader.orders = {} -- purchase orders, list of {name, count}
-	trader.sold_name = nil -- name of the last sold item
-	trader.sold_quality = 1 -- quality of the last sold item
-	-- trader.price = nil -- price of the main object sold (1 item, fluid or energy)
-	
-	trader.editer = nil -- player who is currently editing
-	
-	if level ~= nil then
-		trader.level = level
-		
-		if level == 1 then trader.tank_max = 25000 end
-		if level == 2 then trader.tank_max = 100000 end
-		if level == 3 then trader.tank_max = 200000 end
-		if level == 4 then trader.tank_max = 400000 end
-		
-		if level == 1 then trader.accu_max = 10 end
-		if level == 2 then trader.accu_max = 100 end
-		if level == 3 then trader.accu_max = 250 end
-		if level == 4 then trader.accu_max = 500 end
-	end
-end
-
---------------------------------------------------------------------------------------
-local function copy_trader( trader1, trader2 )
-	trader2.auto = trader1.auto
-	trader2.daylight = trader1.daylight
-	trader2.n_period=trader1.n_period
-	trader2.period=trader1.period
-	
-	if (not trader1.sell_or_buy) and (not trader2.sell_or_buy) and trader1.type == trader2.type then
-		trader2.orders = {}
-	
-		for name, order in pairs(trader1.orders) do
-			table.insert(trader2.orders,order)
-		end
-	end
-end
-
---------------------------------------------------------------------------------------
-local function evaluate_trader(trader)
-	if storage.prices_computed then return end
-	
-	if trader.entity == nil or not trader.entity.valid then
-		trader.evaluation = 0
-		return
-	end
-	
-	local money = 0
-	
-	if trader.type == trader_type.item then
-		local inv = trader.entity.get_inventory(defines.inventory.chest)
-		for _, item in ipairs(inv.get_contents()) do
-			local price = storage.prices[item.name]
-			if price ~= nil then
-				local quality = item.quality
-				local quality_multiplier = 1
-
-				if type(quality) == "string" then
-					quality = quality_lookup_by_name[quality]
-				end
-
-				if quality then
-					quality_multiplier = get_quality_multiplier(quality.level + 1)
-				end
-
-				money = money + item.count * price.current * quality_multiplier
-			end
-		end
-		
-	elseif trader.type == trader_type.fluid then
-		local tank = trader.entity
-		if tank.fluidbox then
-			local box = tank.fluidbox[1]
-			if box ~= nil then
-				local name = box.name
-				local count = box.amount
-			
-				local price = storage.prices[name]
-				if price ~= nil then
-					money = count * price.current 
-				end
-			end
-		end
-		
-	elseif trader.type == trader_type.energy then
-		local accu = trader.entity
-		local name = energy_name
-		local count = accu.energy / 1000000
-		local price = storage.prices[name]
-		if price ~= nil then
-			money = count * price.current 
-		end
-	end
-	
-	trader.evaluation = money
-end
-
---------------------------------------------------------------------------------------
-local function update_transaction(force_mem,type,name,price,count)
-	
-	-- save the transaction
-	if force_mem.transactions[name] == nil then
-		force_mem.transactions[name] = {count=0,type=type}
-		force_mem.new_transaction = true
-	end
-	force_mem.transactions[name].count = force_mem.transactions[name].count + count
-	
-	-- calculate the dynamic of the price
-	if name ~= "ucoin" and dynamic_prices_enabled then
-		if type == "item" and dynamic_influence_item ~= 0 then
-			price.dynamic = price.dynamic + count * dynamic_influence_item
-		elseif type == "fluid" and dynamic_influence_fluid ~= 0 then
-			price.dynamic = price.dynamic + count * dynamic_influence_fluid
-		elseif dynamic_influence_energy ~= 0 then
-			price.dynamic = price.dynamic + count * dynamic_influence_energy
-		end
-		
-		-- keep the dynamic in range
-		if price.dynamic > dynamic_maximal then
-			price.dynamic = dynamic_maximal
-		elseif price.dynamic < dynamic_minimal then
-			price.dynamic = dynamic_minimal
-		end
-	end
-end
-
---------------------------------------------------------------------------------------
-local function sell_trader(trader,force_mem,tax_rate)
-	if storage.prices_computed then return(nil) end
-	
-	if trader.entity == nil or not trader.entity.valid then return(nil) end
-	
-	if tax_rate == nil then tax_rate = storage.tax_rates[trader.period] end
-	if tax_enabled == false then tax_rate = 0 end
-	
-	local money1, tax1
-	local money = 0
-	local taxes = 0
-
-	if trader.type == trader_type.item then
-		local inv = trader.entity.get_inventory(defines.inventory.chest)
-		for _, item in ipairs(inv.get_contents()) do
-			local price = storage.prices[item.name]
-			if price ~= nil then
-				local quality = item.quality
-				local quality_multiplier = 1
-
-				if type(quality) == "string" then
-					quality = quality_lookup_by_name[quality]
-				end
-
-				if quality then
-					quality_multiplier = get_quality_multiplier(quality.level + 1)
-				end
-
-				local price_total = item.count * price.current * quality_multiplier
-				local tax_total = 0
-
-				if item.name ~= "ucoin" then
-					tax_total = price_total * tax_rate / 100
-				end
-
-				money = money + price_total
-				taxes = taxes + tax_total
-
-				inv.remove({name=item.name,count=item.count,quality=quality})
-				update_transaction(force_mem,"item",item.name,price,-item.count)
-
-				if item.count ~= 0 then
-					trader.sold_name = item.name
-					trader.sold_quality = quality.level + 1
-				end
-			end
-		end
-		
-	elseif trader.type == trader_type.fluid then
-		local tank = trader.entity
-		local price = nil
-
-		for name, amount in pairs(tank.get_fluid_contents()) do
-			price = storage.prices[name]
-			if price ~= nil then
-				money1 = amount * price.current 
-				tax1 = money1 * tax_rate / 100
-				money = money + money1 
-				taxes = taxes + tax1
-				tank.remove_fluid({name=name,amount=amount})
-				
-				update_transaction(force_mem,"fluid",name,price,-amount)
-				if amount ~= 0 then 
-					trader.sold_name = name
-					trader.sold_quality = 1
-				end
-			end
-		end
-		
-	elseif trader.type == trader_type.energy then
-		local accu = trader.entity
-		local name = energy_name
-		local count = accu.energy / 1000000
-		local price = storage.prices[energy_name]
-		
-		if price ~= nil then
-			money1 = count * price.current 
-			tax1 = money1 * tax_rate / 100
-			money = money + money1
-			taxes = taxes + tax1
-			
-			accu.energy = 0
-			
-			update_transaction(force_mem,"energy",name,price,-count)
-			trader.sold_name = name
-			trader.sold_quality = 1
-		end
-	end
-
-	trader.money_tot = trader.money_tot + money
-	trader.taxes_tot = trader.taxes_tot + taxes
-	
-	force_mem.credits = force_mem.credits + money - taxes
-	force_mem.sales = force_mem.sales + money
-	force_mem.sales_taxes = force_mem.sales_taxes + taxes
-
-	return(money)
-end
-
---------------------------------------------------------------------------------------
-local function buy_trader(trader,force_mem,tax_rate)
-	if storage.prices_computed then return(nil) end
-	
-	if trader.entity == nil or not trader.entity.valid then return(nil) end
-	
-	if tax_rate == nil then	tax_rate = storage.tax_rates[trader.period] end
-	if tax_enabled == false then tax_rate = 0 end
-
-	local money1
-	local tax1
-	local money = 0
-	local taxes = 0
-	
-	if trader.type == trader_type.item then
-		local inv = trader.entity.get_inventory(defines.inventory.chest)
-
-		for i, order in ipairs(trader.orders) do
-			local price = storage.prices[order.name]
-			if price ~= nil and order.count > 0 then
-				local quality = order.quality
-				local quality_multiplier = 1
-	
-				if quality then
-					quality = quality_lookup_by_level[quality - 1]
-				end
-	
-				if quality then
-					quality_multiplier = get_quality_multiplier(quality.level + 1)
-				end
-
-				local price_total = order.count * price.current * quality_multiplier
-				local tax_total = 0
-
-				if order.name ~= "ucoin" then
-					tax_total = price_total * tax_rate / 100
-				end
-
-				if price_total + tax_total <= force_mem.credits then
-					local purchased = inv.insert({name=order.name,count=order.count,quality=quality})
-
-					if purchased < order.count then
-						price_total = purchased * price.current * quality_multiplier
-
-						if order.name ~= "ucoin" then
-							tax_total = price_total * tax_rate / 100
-						end
-					end
-
-					force_mem.credits = force_mem.credits - price_total - tax_total
-					money = money + price_total
-					taxes = taxes + tax_total
-	
-					update_transaction(force_mem,"item",order.name,price,purchased)
-				end
-			end
-		end
-		
-	elseif trader.type == trader_type.fluid then
-		local order = trader.orders[1]
-		local tank = trader.entity
-
-
-		if order then
-			local name = order.name
-			local price = storage.prices[name]
-			local amount_box = 0
-
-			for fluid_name, fluid_amount in pairs(tank.get_fluid_contents()) do
-				if fluid_name == name or fluid_amount > 0.1 then
-					amount_box = amount_box + fluid_amount
-				else
-					-- clear other fluids if they are less than 0.1
-					tank.remove_fluid({name=fluid_name,amount=fluid_amount})
-				end
-			end
-
-			
-			if price then
-				local purchased = math.min(order.count,(trader.tank_max - amount_box))
-				money1 = purchased * price.current 
-				tax1 = money1 * tax_rate / 100
-				if purchased > 0 and money1+tax1 <= force_mem.credits then
-					money = money + money1 
-					taxes = taxes + tax1
-					tank.insert_fluid({name=name,amount=purchased})
-					
-					update_transaction(force_mem,"fluid",name,price,purchased)
-				end
-			end
-		end
-		
-	elseif trader.type == trader_type.energy then
-		local order = trader.orders[1]
-		local accu = trader.entity
-		local name = energy_name
-		local count = accu.energy / 1000000
-		local price = storage.prices[name]
-		
-		if order and price then
-			local purchased = math.min(order.count,trader.accu_max - count)
-			money = purchased * price.current
-			
-			if purchased > 0 and money <= force_mem.credits then
-				taxes = money * tax_rate / 100
-				money = money - taxes
-				force_mem.credits = force_mem.credits - money - taxes
-			
-				accu.energy = accu.energy + purchased * 1000000
-			
-				update_transaction(force_mem,"energy",name,price,purchased)
-			end
-		end
-	end
-	
-	trader.money_tot = trader.money_tot + money
-	trader.taxes_tot = trader.taxes_tot + taxes
-	
-	force_mem.purchases = force_mem.purchases + money
-	force_mem.purchases_taxes = force_mem.purchases_taxes + taxes
-
-	return(money)
-end
-
---------------------------------------------------------------------------------------
-local function listen_trader(trader)
-	local ent = trader.entity
-	if ent == nil or not ent.valid then return(false) end
-	local changed = false
-	
-	local network = ent.get_circuit_network(defines.wire_type.red)
-	
-	if network == nil then 
-		network = ent.get_circuit_network(defines.wire_type.green)
-	end
-	
-	if network == nil then return(false) end
-	
-	local function listen_signal(signal)
-		local val = network.get_signal(signal)
-		-- debug_print( "auto=", val )
-		if val ~= 0 then
-			local auto = (val ~= 1)
-			if auto ~= trader.auto then changed = true end
-			trader.auto = auto
-		end
-	end
-	
-	listen_signal(trader_signals.auto_all)
-	
-	if trader.sell_or_buy then
-		listen_signal(trader_signals.auto_sell)
-	else
-		listen_signal(trader_signals.auto_buy)
-	end
-	
-	if trader.editer and changed then update_menu_trader(trader.editer,nil,false) end
-	
-	return(true)
-end
-
---------------------------------------------------------------------------------------
-local function listen_traders(force_mem)
-	if storage.prices_computed then return(nil) end
-	
-	for i=1,#force_mem.traders_buy do
-		local trader = force_mem.traders_buy[i]
-		listen_trader(trader)
-	end
-	
-	for i=1,#force_mem.traders_sell do
-		local trader = force_mem.traders_sell[i]
-		listen_trader(trader)
-	end
-end
-
--- params = {parameters={
-	-- {index=1,signal={type="virtual",name="signal-clock-gametick"},count=math.floor(game.tick)},
-	-- {index=2,signal={type="virtual",name="signal-clock-day"},count=storage.day},
-	-- {index=3,signal={type="virtual",name="signal-clock-hour"},count=storage.h},
-	-- {index=4,signal={type="virtual",name="signal-clock-minute"},count=storage.m},
-	-- {index=5,signal={type="virtual",name="signal-clock-alwaysday"},count=iif(storage.surface.always_day,1,0)},
-	-- {index=6,signal={type="virtual",name="signal-clock-darkness"},count=math.floor(storage.surface.darkness*100)},
-	-- {index=7,signal={type="virtual",name="signal-clock-lightness"},count=math.floor((1-storage.surface.darkness)*100)},
--- }}
-
--- clock.entity.get_control_behavior().parameters = params
-
---------------------------------------------------------------------------------------
-local function find_trader_sell(force_mem,ent)
-	for _, trader in pairs(force_mem.traders_sell) do
-		if trader.entity == ent then
-			 return(trader)
-		end
-	end
-	
-	return(nil)
-end
-
---------------------------------------------------------------------------------------
-local function find_trader_buy(force_mem,ent)
-	for _, trader in pairs(force_mem.traders_buy) do
-		if trader.entity == ent then
-			 return(trader)
-		end
-	end
-	
-	return(nil)
-end
-
---------------------------------------------------------------------------------------
-local function compute_trader_data(trader,update_orders)
-	if storage.prices_computed then return end
-	
-	local tot
-	
-	if trader.sell_or_buy then
-		tot = trader.money_tot -- + trader.taxes_tot 
-	else
-		tot = trader.money_tot 
-	end
-	
-	if tot == 0 then
-		trader.tax_rate_tot = 0
-	else
-		trader.tax_rate_tot = math.floor(0.5+100 * trader.taxes_tot  / tot)
-	end
-
-	trader.money = trader.money_tot - trader.money_reset
-	trader.taxes = trader.taxes_tot - trader.taxes_reset
-	
-	trader.dhour = storage.hour - trader.hour
-	if trader.dhour == 0 then
-		trader.money_average = 0
-	else
-		trader.money_average = math.floor(0.5+trader.money * 24 / trader.dhour)
-	end
-	
-	if trader.sell_or_buy then
-		tot = trader.money -- + trader.taxes
-	else
-		tot = trader.money
-	end
-	
-	if tot == 0 then
-		trader.tax_rate = 0
-	else
-		trader.tax_rate = math.floor(0.5+100 * trader.taxes  / tot)
-	end
-
-	if trader.sell_or_buy then
-	else
-		tot = 0
-		for _, order in pairs(trader.orders) do
-			local price = storage.prices[order.name]
-			if price and order.quality then
-				tot = tot + order.count * price.current * get_quality_multiplier(order.quality)
-			elseif price then
-				tot = tot + order.count * price.current
-			end
-		end
-		
-		trader.orders_tot = tot
-		-- debug_print(tot)
-	end
-	
-	if update_orders ~= nil and trader.editer then update_menu_trader(trader.editer,nil,update_orders) end
-end
-
---------------------------------------------------------------------------------------
-local function clean_orders_and_transactions()
-	for name, force in pairs(game.forces) do
-		debug_print("name=", name)
-		
-		local force_mem = storage.force_mem[name]
-		
-		-- clean orders with non existing objects
-	
-		for i=#force_mem.traders_buy,1,-1 do
-			local trader = force_mem.traders_buy[i]
-			if trader.type == trader_type.item then
-				for i=#trader.orders,1,-1 do
-					local order = trader.orders[i]
-					if prototypes.get_item_filtered({})[order.name] == nil or i > 99 then
-						table.remove(trader.orders,i)
-					end
-				end
-			elseif trader.type == trader_type.fluid then
-				for i=#trader.orders,1,-1 do
-					local order = trader.orders[i]
-					if prototypes.get_fluid_filtered({})[order.name] == nil or i > 99 then
-						table.remove(trader.orders,i)
-					end
-				end
-			end
-		end
-		
-		-- clean transactions with non existing objects
-	
-		for name_transaction, transaction in pairs(force_mem.transactions) do
-			if transaction.type == "item" then
-				if prototypes.get_item_filtered({})[name_transaction] == nil then
-					force_mem.transactions[name_transaction] = nil
-				end
-			elseif transaction.type == "fluid" then
-				if prototypes.get_fluid_filtered({})[name_transaction] == nil then
-					force_mem.transactions[name_transaction] = nil
-				end
-			end
-		end
-	end
+    storage.groups = groups
 end
 
 --------------------------------------------------------------------------------------
 local function init_storages()
-	-- initialize or update general storages of the mod
-	debug_print( "init_storages" )
-	
-	storage.tick = storage.tick or 0
-	storage.force_mem = storage.force_mem or {}
-	storage.player_mem = storage.player_mem or {}
-	
-	storage.always_day = game.surfaces.nauvis.always_day
-	storage.day = storage.day or 0 -- day (changes at noon)
-	storage.day_changed = false
-	storage.hour = storage.hour or -1 -- hour (always increases, does not reset at 24...)
-	storage.hour_prev = storage.hour_prev or -1
-	storage.hour_changed = 0
+    -- initialize or update general storages of the mod
 
-	storage.item_recipes = {}
-	
-	if storage.prices_computed == nil then storage.prices_computed = false end
+    storage.tick = storage.tick or 0
 
-	if storage.techs_costs == nil then -- costs for every tech
-		update_techs_costs() 
-	end
-	
-	storage.orig_resources = storage.orig_resources or {} -- items undeclared as resources
-	storage.new_resources = storage.new_resources or {} -- items that could be undeclared resources (used as ingredients but never produced)
-	storage.free_products = storage.free_products or {} -- items with no prices
-	storage.unknowns = storage.unknowns or {} -- items with no prices
-	
-	if storage.prices == nil then -- prices for every item/fluid
-		update_objects_prices_start()
-	end
-	
-	storage.groups = storage.groups or {}
-	
-	-- if storage.groups == nil then
-		-- update_groups()
-	-- end
-	
-	if storage.tax_rates == nil then
-		init_tax_rates()
-	end
+    storage.item_recipes = {}
+
+    if storage.prices_computed == nil then
+        storage.prices_computed = false
+    end
+
+    if storage.techs_costs == nil then
+        -- costs for every tech
+        update_techs_costs()
+    end
+
+    storage.orig_resources = storage.orig_resources or {} -- items undeclared as resources
+    storage.new_resources = storage.new_resources or
+            {}                                                    -- items that could be undeclared resources (used as ingredients but never produced)
+    storage.free_products = storage.free_products or {}   -- items with no prices
+    storage.unknowns = storage.unknowns or {}             -- items with no prices
+
+    if storage.prices == nil then
+        -- prices for every item/fluid
+        update_objects_prices_start()
+    end
+
+    storage.groups = storage.groups or {}
+
+    if storage.groups == nil then
+        update_groups()
+    end
 end
 
 --------------------------------------------------------------------------------------
-local function init_force(force)
-	assert(storage.force_mem ~= nil)
-	
-	-- initialize or update per force storages of the mod
-	debug_print( "init_force ", force.name )
-	
-	storage.force_mem[force.name] = storage.force_mem[force.name] or {}
-	local force_mem = storage.force_mem[force.name]
-	
-	if force_mem.pause == nil then force_mem.pause = false end
-	force_mem.n_period = force_mem.n_period or default_n_period
-	force_mem.period = periods[force_mem.n_period]
-	-- force_mem.credits = force_mem.credits or ((debug_status == 1) and 1000000 or 0)
-	force_mem.credits = force_mem.credits or 0
-	force_mem.credits_startday = force_mem.credits_startday or storage.day -- credits at beginning of last day
-	force_mem.credits_lastday = force_mem.credits_lastday or 0 -- credits during last day
-	force_mem.var_lastday = force_mem.var_lastday or 0 -- variation od credit during last day
-	force_mem.sales = force_mem.sales or 0 -- sum of all net sales
-	force_mem.sales_taxes = force_mem.sales_taxes or 0 -- sum of all sales taxes
-	force_mem.purchases = force_mem.purchases or 0 -- sum of all net purchases
-	force_mem.purchases_taxes = force_mem.purchases_taxes or 0 -- sum of all purchases taxes
-	force_mem.tax_rate = force_mem.tax_rate or 0 -- average overall tax rate
-	force_mem.transactions = force_mem.transactions or {} -- balance per object index by name, {count, type} type = "item", "fluid", "energy"
-	
-	force_mem.traders_sell = force_mem.traders_sell or {}
-	force_mem.traders_buy = force_mem.traders_buy or {}
+local function gui_clear(gui)
+    for _, guiname in pairs(gui.children_names) do
+        if gui[guiname] ~= nil then
+            gui[guiname].destroy()
+
+        end
+    end
+end
+local function init_gui_money_counter(player)
+    if player then
+
+        local gui_parent = mod_gui.get_button_flow(player)
+        local gui1 = gui_parent.flow_mbm
+        if gui1 == nil then
+            gui1 = gui_parent.add({ type = "flow", name = "flow_mbm", direction = "horizontal" })
+            storage.market_money_gui[player.index] = {}
+            storage.market_money_gui[player.index].lbl_money_counter = gui1.add({ type = "button", name = "btn_money_counter", caption = format_money(storage.market_money) })
+            storage.market_money_gui[player.index].lbl_money_counter.style.height = 40
+        end
+        --storage.market_money_gui = storage.market_money_gui or { }
+    end
+end
+local function gui_money_counter_update()
+    init_gui_money_counter(player)
+    for i = 1, #storage.market_money_gui do
+        storage.market_money_gui[i].lbl_money_counter.caption = format_money(storage.market_money)
+    end
 end
 
 --------------------------------------------------------------------------------------
-local function init_forces()
-	for _, force in pairs(game.forces) do
-		init_force(force)
-	end
-	
-	-- clean_orders_and_transactions()
+local function gui_update_prices(market)
+    local total = 0
+    for id = 1, #market.orders do
+        if market.orders[id].item then
+            if not storage.prices[market.orders[id].item] then
+                return
+            end
+            local p = get_price_quality(storage.prices[market.orders[id].item].current, market.orders[id].quality)
+            market.orders[id].price_label.caption = format_money(p)
+            total = total + (p * market.orders[id].quantity)
+        end
+    end
+    market.gui_lbl_orders_total.caption = { '', { "mbm-gui-lbl-total-orders" }, ' ' .. format_money(total + (total * tax_pay)) .. '  incl.(tax : ' .. format_money(total * tax_pay) .. ')' }
+end
+local function gui_add_order(market, order)
+    local gui = market.gui_orders_table
+    local item = order.item
+    local quantity = order.quantity
+    local price = storage.prices[item]
+    local id = order.id
+    if price then
+        current = price.current
+        evol = price.evolution
+    else
+        current = 0
+        evol = 0
+    end
+    if market.type == market_type.item then
+        local btn_del = gui.add({ type = "button", name = "btn_mbm_delete_order-" .. string.format("%4d", id), caption = "X" })
+        btn_del.style.width = 32
+        btn_del.style.height = 32
+    end
+    if market.type == market_type.fluid then
+        gui.add({ type = 'label', name = 'lbl_fld_empty' .. string.format("%4d", id) })
+        order.item_btn = gui.add({ type = "sprite-button", name = "btn_mbm_elmnt-" .. string.format("%4d", id) })
+        if prototypes['fluid'][item] and item then
+            order.item_btn.sprite = "fluid/" .. item
+        end
+    end
+    if market.type == market_type.energy then
+
+        gui.add({ type = 'label', name = 'lbl_fld_empty1' .. string.format("%4d", id) })
+    end
+    if market.type == market_type.item and item then
+        --local btn_mbm_elmnt = gui.add({ type = "choose-elem-button", name = "btn_mbm_elmnt-" .. string.format("%4d", id), elem_type = "item",filters={{filter='enabled'}} })
+        --btn_mbm_elmnt.elem_value = itemsprite = .name
+        order.item_btn = gui.add({ type = "sprite-button", name = "btn_mbm_elmnt-" .. string.format("%4d", id) })
+
+        if prototypes['item'][item] then
+            order.item_btn.sprite = "item/" .. item
+        end
+
+    end
+    if market.type == market_type.energy then
+        gui.add({ type = "sprite-button", sprite = "sprite_energy_blkmkt" })
+    end
+    local txt_mbm_qnt = gui.add({ type = "textfield", name = "txt_mbm_qnt-" .. string.format("%4d", id), text = quantity, style = "textfield_blkmkt_style", numeric = true, allow_decimal = false, allow_negative = false })
+    txt_mbm_qnt.style.maximal_width = 50
+    if market.type == market_type.item then
+        local items_dropdown = {}
+
+        for i = 1, #quality_type do
+            table.insert(items_dropdown, i, '[quality=' .. quality_type[i] .. ']')
+        end
+
+        if next(items_dropdown) == nil then
+            items_dropdown[1] = ' '
+            order.quality = 1
+        end
+        if order.quality >= #items_dropdown then
+            order.quality = #items_dropdown
+        end
+        local drp_mbm_qlt = gui.add({ type = "drop-down", name = "drp_mbm_qlt-" .. string.format("%4d", id), items = items_dropdown, selected_index = order.quality })
+        drp_mbm_qlt.style.maximal_width = 70
+    else
+        gui.add({ type = 'label', name = 'lbl_fld_empty2' .. string.format("%4d", id) })
+    end
+    order.price_label = gui.add({ type = "label", name = 'lbl_mbm_curprice-' .. string.format("%4d", id), caption = format_money(current) .. " " .. format_evolution(evol) })
+    market.orders[order.id] = order
+end
+local function gui_add_new_order(market)
+    local gui = market.gui_orders_table
+    local orders = market.orders or {}
+    local n = #orders + 1
+    orders[n] = { item = 'wooden-chest', quantity = 1, quality = 1, id = n }
+    market.orders = orders
+    gui_add_order(market, orders[n])
+
+end
+local function gui_update_orders(market)
+
+    if market.type == market_type.fluid then
+        local orders = market.orders or {}
+        if next(orders) == nil then
+            orders[1] = { item = 'crude-oil', quantity = 0, quality = 1 }
+        end
+        market.orders = orders
+    end
+    if market.type == market_type.energy then
+        local orders = market.orders or {}
+        if next(orders) == nil then
+            orders[1] = { item = energy_name, quantity = 1, quality = 1 }
+        end
+        market.orders = orders
+    end
+    if market.orders ~= nil then
+        for id = 1, #market.orders do
+            market.orders[id].id = id
+            gui_add_order(market, market.orders[id])
+        end
+        gui_update_prices(market)
+    end
 end
 
 --------------------------------------------------------------------------------------
-local function init_player(player)
-	if storage.player_mem == nil then return end
-	
-	-- initialize or update per player storages of the mod, and reset the gui
-	debug_print( "init_player ", player.name, " connected=", player.connected )
-	
-	storage.player_mem[player.index] = storage.player_mem[player.index] or {}
-	
-	local player_mem = storage.player_mem[player.index]
-	if player_mem.auto_close == nil then player_mem.auto_close = false end
-	player_mem.group_sel_name = player_mem.group_sel_name or nil
-	player_mem.object_sel_name = player_mem.object_sel_name or nil
-	player_mem.ask_sel = player_mem.ask_sel or nil
-	
-	player_mem.opened = player_mem.opened or nil
-	player_mem.opened_trader = player_mem.opened_trader or nil
-	player_mem.order_sel_n = player_mem.order_sel_n or 0 -- currently edited order
-	
-	player_mem.cursor_name = nil
-	
-	if player.connected then
-		build_bar(player)
-		update_bar(player)
-	end
+local function gui_buy(market)
+    local total = 0
+    local mymoney = storage.market_money
+    if market.orders == nil then
+        return
+    end
+    if #market.orders <= 0 then
+        return
+    end
+    local money_buy = 0
+    --if market.type == market_type.item then
+    --    for id = 1, #market.orders do
+    --        local p = get_price_quality(storage.prices[market.orders[id].item].current, market.orders[id].quality)
+    --        total = total + (p * market.orders[id].quantity)
+    --        if total < mymoney then
+    --            local inv = market.entity.get_inventory(defines.inventory.chest)
+    --            local stack_count = inv.count_empty_stacks(true,true)
+    --            mymoney = mymoney - total
+    --            money_buy = money_buy + total
+    --
+    --            inv.insert({ name = market.orders[id].item, count = market.orders[id].quantity, quality = quality_type[market.orders[id].quality] })
+    --        end
+    --    end
+    --end
+    if market.type == market_type.item then
+        for id = 1, #market.orders do
+            local order = market.orders[id]
+            if not storage.prices[order.item] then
+                return
+            end
+            local p = get_price_quality(storage.prices[order.item].current, order.quality)
+            local inv = market.entity.get_inventory(defines.inventory.chest)
+            local item_name = order.item
+            local order_quantity = order.quantity
+            local item_quality = quality_type[order.quality]
+            local max_quantity = 0
+
+            for i = 1, #inv do
+                local stack = inv[i]
+                if stack.valid_for_read then
+                    if stack.name == item_name and stack.prototype and stack.quality.name == item_quality then
+                        max_quantity = max_quantity + (stack.prototype.stack_size - stack.count)
+                    end
+                else
+                    max_quantity = max_quantity + prototypes.item[item_name].stack_size
+                end
+
+                if max_quantity >= order_quantity then
+                    max_quantity = order_quantity
+                    break
+                end
+            end
+
+            local quantity_to_buy = math.min(max_quantity, order_quantity)
+            local order_total = p * quantity_to_buy
+
+            if order_total <= mymoney and quantity_to_buy > 0 then
+                mymoney = mymoney - order_total
+                money_buy = money_buy + order_total
+                inv.insert({ name = item_name, count = quantity_to_buy, quality = item_quality })
+                total = total + order_total
+            end
+        end
+    end
+
+    if market.type == market_type.fluid then
+        local order = market.orders[1]
+        local tank = market.entity
+
+        if order then
+            local name = order.item
+            if not storage.prices[order.item] then
+                return
+            end
+            local price = storage.prices[name]
+
+            local amount_box = 0
+            local has_other_fluid = false
+
+            for fluid_name, fluid_amount in pairs(tank.get_fluid_contents()) do
+                if fluid_name ~= name then
+                    has_other_fluid = true
+                    break
+                else
+                    amount_box = amount_box + fluid_amount
+                end
+            end
+
+            if not has_other_fluid and price then
+                local purchased = math.min(order.quantity, (tank.prototype.fluid_capacity - amount_box))
+                local money1 = purchased * price.current
+
+                if purchased > 0 and money1 <= mymoney then
+                    mymoney = mymoney - money1
+                    money_buy = money_buy + money1
+                    tank.insert_fluid({ name = name, amount = purchased })
+                end
+            end
+        end
+    end
+    if market.type == market_type.energy then
+        local order = market.orders[1]
+        local accu = market.entity
+        local name = energy_name
+        local price = storage.prices[name]
+        if order and price then
+            local purchased = math.min(order.quantity * 1000000, (accu.electric_buffer_size - accu.energy)) / 1000000
+            local money = purchased * price.current
+
+            if purchased > 0 and money <= mymoney then
+
+                mymoney = mymoney - money
+                money_buy = money_buy + money
+                accu.energy = accu.energy + (purchased * 1000000)
+
+            end
+        end
+    end
+    market.total_buy = market.total_buy or 0
+    market.total_buy = market.total_buy + (money_buy + (money_buy * tax_pay))
+    market.total_tax = market.total_tax or 0
+    market.total_tax = market.total_tax + (money_buy * tax_pay)
+    storage.market_money = storage.market_money - (money_buy + (money_buy * tax_pay))
+    if market_opened == market then
+        market.gui_lbl_money_tot.caption = format_money(market.total_buy)
+        market.gui_lbl_taxes_tot.caption = format_money(market.total_tax)
+    end
+    gui_money_counter_update()
+end
+local function gui_eval_all(market)
+    local money = 0
+    if market.type == market_type.item then
+        local inv = market.entity.get_inventory(defines.inventory.chest)
+        local contents = inv.get_contents()
+        local price = nil
+        for i = 1, #contents, 1 do
+            local name = contents[i].name
+            local count = contents[i].count
+            local quality = contents[i].quality
+            price = storage.prices[name]
+            if price ~= nil then
+                money = money + count * get_price_quality(price.current, quality)
+            end
+        end
+    end
+    if market.type == market_type.fluid then
+        local tank = market.entity
+        if tank.fluidbox then
+            local box = tank.fluidbox[1]
+            if box ~= nil then
+                local name = box.name
+                local count = box.amount
+
+                local price = storage.prices[name]
+                if price ~= nil then
+                    money = count * price.current
+                end
+
+            end
+        end
+    end
+    if market.type == market_type.energy then
+        local accu = market.entity
+        local name = energy_name
+        local count = accu.energy / 1000000
+        local price = storage.prices[name]
+        if price ~= nil then
+            money = count * price.current
+        end
+    end
+    if market_opened == market then
+        if money ~= nil then
+            market.gui_lbl_evaluation.caption = format_money(money - (money * tax_pay)) .. '  excl.(tax : ' .. format_money(money * tax_pay) .. ')'
+        end
+    end
+    market.eval_price = money
+end
+local function gui_sell_all(market)
+
+    gui_eval_all(market)
+    if market.type == market_type.item then
+        local inv = market.entity.get_inventory(defines.inventory.chest)
+        for i, item in pairs(inv.get_contents()) do
+            inv.remove({ name = item.name, count = item.count, quality = item.quality })
+            market.last_sold_item = item.name
+            if market.gui_btn_sold and market_opened and market == market_opened then
+                market.gui_btn_sold.enabled = false
+                market.gui_btn_sold.sprite = "item/" .. item.name
+            end
+        end
+    end
+    if market.type == market_type.fluid then
+        local tank = market.entity
+        for name, amount in pairs(tank.get_fluid_contents()) do
+            tank.remove_fluid({ name = name, amount = amount })
+
+            market.last_sold_item = name
+            if market.gui_btn_sold and market_opened and market == market_opened then
+                market.gui_btn_sold.enabled = false
+                market.gui_btn_sold.sprite = "fluid/" .. name
+            end
+        end
+    end
+    if market.type == market_type.energy then
+        market.last_sold_item = 'sprite_energy_blkmkt'
+        if market.gui_btn_sold and market_opened and market == market_opened then
+            market.gui_btn_sold.enabled = false
+            market.gui_btn_sold.sprite = market.last_sold_item
+        end
+    end
+    if market.type == market_type.energy then
+        local accu = market.entity
+        accu.energy = 0
+    end
+    storage.market_money = storage.market_money + (market.eval_price - (market.eval_price * tax_pay))
+    market.total_tax = market.total_tax or 0
+    market.total_tax = market.total_tax + (market.eval_price * tax_pay)
+    market.total_buy = market.total_buy or 0
+    market.total_buy = (market.eval_price - (market.eval_price * tax_pay)) + market.total_buy
+    if market_opened == market then
+        market.gui_lbl_money_tot.caption = format_money(market.total_buy)
+        market.gui_lbl_taxes_tot.caption = format_money(market.total_tax)
+    end
+    gui_money_counter_update()
 end
 
 --------------------------------------------------------------------------------------
-local function init_players()
-	for _, player in pairs(game.players) do
-		init_player(player)
-	end
+local function set_content_visible(group_name, state)
+    for _, x in pairs(content_list[group_name]) do
+        x.visible = state
+    end
 end
+local function swap_chests(input, output)
+    local inv_input = input.get_inventory(defines.inventory.chest)
+    local inv_output = output.get_inventory(defines.inventory.chest)
+    output.clear_items_inside()
+    for i, item in pairs(inv_input.get_contents()) do
+        inv_output.insert({ name = item.name, count = item.count, quality = item.quality })
+        inv_input.remove({ name = item.name, conut = item.count, quality = item.quality })
+    end
+    input.clear_items_inside()
+end
+
+local resource_price = {
+    free = 0,
+    water = 0,
+    unknown = 10000,
+    ["wood"] = 51,
+    ["coal"] = 16,
+    ["stone"] = 27,
+    ["iron-ore"] = 50,
+    ["copper-ore"] = 50,
+    ["iron-plate"] = 91,
+    ["copper-ore"] = 50,
+    ["copper-plate"] = 93,
+    ["uranium-ore"] = 182,
+    ['crude-oil'] = 100
+}
+----------------------------------------------------------------------
+local function draw_menu(market_p, player)
+    local market = market_p
+    if next(market) == nil then
+        return
+    end
+    if player.gui.relative["zra_market_menu"] then
+        player.gui.relative["zra_market_menu"].destroy()
+    end
+
+    if not storage.prices_computed then
+
+        market.total_buy = market.total_buy or 0
+        market.total_tax = market.total_tax or 0
+        -- open_or_close and
+        local gui1, gui2, gui3
+        local gui_parent
+        if market.type == market_type.item then
+            gui_parent = player.gui.relative.add {
+                type = 'frame',
+                name = 'zra_market_menu',
+                caption = { "mbm-gui-gui-title" },
+                anchor = { gui = defines.relative_gui_type.container_gui,
+                           position = defines.relative_gui_position.left }
+            }
+        elseif market.type == market_type.fluid then
+            gui_parent = player.gui.relative.add {
+                type = 'frame',
+                name = 'zra_market_menu',
+                caption = { "mbm-gui-gui-title" },
+                anchor = { gui = defines.relative_gui_type.storage_tank_gui,
+                           position = defines.relative_gui_position.left }
+            }
+        elseif market.type == market_type.energy then
+            gui_parent = player.gui.relative.add {
+                type = 'frame',
+                name = 'zra_market_menu',
+                caption = { "mbm-gui-gui-title" },
+                anchor = { gui = defines.relative_gui_type.accumulator_gui,
+                           position = defines.relative_gui_position.left },
+            }
+        end
+
+        gui_parent.style.maximal_height = 650
+        gui_parent.style.maximal_width = 420
+        gui1 = gui_parent
+        gui1.style.minimal_height = 290
+        gui1.style.minimal_width = 360
+        market.main_gui = gui1
+        gui1 = gui1.add({ type = "flow", direction = "vertical" })
+
+        -----------------------------------
+        ---GUI
+        ---Automati
+
+        gui2 = gui1.add({ type = "flow", direction = "horizontal" })
+        local cbx_auto_trade = market.signal_cbx_auto_trade or false
+        local cbx_auto_circuit = market.signal_cbx_auto_circuit or false
+        gui1.add({ type = 'checkbox', name = 'cbx_mbm_activate_auto', caption = { 'mbm-gui-cbx-automatic' }, state = cbx_auto_trade })
+        local gui4 = gui1.add({ type = 'table', column_count = 2 })
+        market.signal_gui_radio_circuit = gui4.add({ type = 'radiobutton', name = 'rbx_mbm_activate_auto_circuit', caption = { 'mbm-gui-radio-circuits' }, state = cbx_auto_circuit, enabled = cbx_auto_trade })
+        market.signal_gui_radio_self = gui4.add({ type = 'radiobutton', name = 'rbx_mbm_activate_auto_self', caption = { 'mbm-gui-radio-self-inv' }, state = not cbx_auto_circuit, enabled = cbx_auto_trade })
+        gui3 = gui1.add({ type = "table", column_count = 4 })
+        market.signal_gui_signal_active_a = gui3.add({ type = "choose-elem-button", name = "btn_mbm_elmnt_signal_activate_a-", elem_type = "signal", enabled = cbx_auto_trade })
+        market.signal_gui_signal_active_a.elem_value = market.signal_automatic_a or nil
+        local sel_index = market.signal_condition or 1
+        market.signal_gui_drp_condition = gui3.add({ type = "drop-down", name = "drp_mbm_cond_signal_activate", items = { '>', '<', '=', '≥', '≤', '≠' }, selected_index = sel_index, enabled = cbx_auto_trade })
+        market.signal_gui_drp_condition.style.maximal_width = 52
+        local chb_state_const = market.signal_cbx_constant or false
+        market.signal_gui_cbx_constant = gui3.add({ type = 'checkbox', name = 'cbx_mbm_activate_auto_cons', state = chb_state_const, enabled = cbx_auto_trade })
+        market.signal_gui_table = gui3
+        if chb_state_const then
+            market.signal_gui_signal_active_b = gui3.add({ type = "choose-elem-button", name = "btn_mbm_elmnt_signal_activate_b", elem_type = "signal", enabled = cbx_auto_trade })
+            market.signal_gui_signal_active_b.elem_value = market.signal_automatic_b or nil
+        else
+            market.signal_gui_signal_const_b = gui3.add({ type = "textfield", name = "txt_mbm_const_value", enabled = cbx_auto_trade, style = "textfield_blkmkt_style", numeric = true, allow_decimal = false, allow_negative = true })
+            market.signal_gui_signal_const_b.style.width = 100
+            local number = market.signal_constant_number or 0
+
+            market.signal_gui_signal_const_b.text = tostring(number)
+        end
+        market.signal_gui_signal_a_lbl = gui3.add({ type = "label" })
+        gui3.add({ type = "label" })
+        gui3.add({ type = "label" })
+        market.signal_gui_signal_b_lbl = gui3.add({ type = "label" })
+
+        -----------------------------------
+
+
+
+        local btn = nil
+        if market.is_seller == true then
+            btn = gui2.add({ type = "button", name = "btn_mbm_sell", caption = { "mbm-gui-btn-sell" } })
+        else
+            btn = gui2.add({ type = "button", name = "btn_mbm_buy", caption = { "mbm-gui-btn-buy" } })
+        end
+        btn.style.width = 344
+
+        gui2 = gui1.add({ type = "table", column_count = 2 })
+
+        if market.is_seller == false then
+            gui2.add({ type = "label", caption = { "mbm-gui-lbl-money-tot" } })
+            market.gui_lbl_money_tot = gui2.add({ type = "label", caption = format_money(market.total_buy) })
+
+            gui2.add({ type = "label", caption = { "mbm-gui-lbl-tax-tot" } })
+            market.gui_lbl_taxes_tot = gui2.add({ type = "label", caption = format_money(market.total_tax) })
+        else
+            gui2.add({ type = "label", caption = { "mbm-gui-lbl-money-tot" } })
+            market.gui_lbl_money_tot = gui2.add({ type = "label", caption = format_money(market.total_buy) })
+            gui2.add({ type = "label", caption = { "mbm-gui-lbl-tax-tot" } })
+            market.gui_lbl_taxes_tot = gui2.add({ type = "label", caption = format_money(market.total_tax) })
+            gui2.add({ type = "button", name = "btn_mbm_eval-", caption = { "mbm-gui-btn-eval" } })
+            market.gui_lbl_evaluation = gui2.add({ type = "label" })
+        end
+        if market.is_seller then
+            gui2.add({ type = "label", caption = { "mbm-gui-lbl-lso" } })
+            gui3 = gui2.add({ type = "flow", direction = "horizontal" })
+            market.gui_btn_sold = gui3.add({ type = "sprite-button" })
+            market.last_sold_item = market.last_sold_item or nil
+            if market.type == market_type.item and market.last_sold_item then
+                if prototypes['item'][market.last_sold_item] then
+                    market.gui_btn_sold.sprite = "item/" .. market.last_sold_item
+                end
+
+            elseif market.type == market_type.fluid and market.last_sold_item then
+
+                if prototypes['fluid'][market.last_sold_item] then
+                    market.gui_btn_sold.sprite = "fluid/" .. market.last_sold_item
+                end
+
+            elseif market.type == market_type.energy then
+                market.gui_btn_sold.sprite = market.last_sold_item
+            end
+            market.gui_btn_sold.enabled = false
+            gui3.add({ type = "label" })
+        else
+            if market.type == market_type.item then
+                -- gui2 = gui1.add({type = "flow", direction = "horizontal", style = "horizontal_flow_blkmkt_style"})
+                local btn_new = gui2.add({ type = "button", name = "btn_mbm_new_order", caption = { "mbm-gui-btn-add-order" } })
+                btn_new.style.width = 170
+                local btn_wipe = gui2.add({ type = "button", name = "btn_mbm_wipe_order", caption = { "mbm-gui-btn-wipe" } })
+                btn_wipe.style.width = 170
+            end
+            market.gui_lbl_orders_total = gui1.add({ type = "label", name = "lbl_blkmkt_trader_orders", caption = { "mbm-gui-lbl-total-orders" } })
+            gui2.style.maximal_height = 150
+            gui2 = gui1.add({ type = "frame", direction = "horizontal" })
+            gui2 = gui2.add({ type = "scroll-pane", vertical_scroll_policy = "auto" })
+            gui2.style.minimal_width = 320
+            gui2.style.minimal_height = 70
+            gui2 = gui2.add({ type = "table", column_count = 5, draw_horizontal_lines = true, draw_horizontal_line_after_headers = true })
+            gui2.style.minimal_height = 50
+            local el1 = gui2.add({ type = "label" })
+            el1.style.width = 50
+            local el2 = gui2.add({ type = "label", caption = { "mbm-gui-tbl-item" } })
+            el2.style.width = 50
+            local el3 = gui2.add({ type = "label", caption = { 'mbm-gui-tbl-qnt' } })
+            el3.style.width = 50
+            local el4 = gui2.add({ type = "label", caption = { 'mbm-gui-tbl-qlt' } })
+            el4.style.width = 50
+            local el5 = gui2.add({ type = "label", caption = { "mbm-gui-tbl-price" } })
+            el5.style.width = 50
+
+            market.gui_orders_table = gui2
+            gui_update_orders(market)
+        end
+
+    end
+end
+local function draw_elem_gui(market, player)
+    if next(market) == nil then
+        return
+    end
+    if player.gui.screen['zra_elem_menu'] then
+        player.gui.screen['zra_elem_menu'].destroy()
+    end
+    local gui_parent = player.gui.screen.add { type = 'frame', name = 'zra_elem_menu' }
+
+    if not storage.prices_computed then
+        local main_window, item_table_holder, item_table
+        main_window = gui_parent
+        -- main_window = main_window.add({type = "empty-widget", ignored_by_interaction="true", name = "main_window_drag_handle", style = "flib_titlebar_drag_handle"})
+
+        main_window = main_window.add { type = 'table', column_count = 1 }
+        local title_bar = main_window.add { type = "flow", direction = "horizontal" }
+        main_window = main_window.add({ type = "frame", direction = "vertical" })
+        main_window.style.minimal_width = 380
+        title_bar.drag_target = gui_parent
+
+        title_bar.add { type = "label", caption = "Choose :", style = "frame_title", ignored_by_interaction = true }
+
+        title_bar.add { type = "empty-widget", style = "draggable_space_header" }.style.horizontally_stretchable = true
+
+        title_bar.add { type = "sprite-button", name = "btn_close_elemsel", sprite = "utility/close_fat", style = "frame_action_button" }
+
+        local n = 1
+
+        local table_tab = main_window.add({ type = 'table', column_count = 5 })
+        local content_widget = main_window.add { type = "frame" }
+        --local content_widget = main_window.add { type = 'frame' ,style = 'slot_button_deep_frame' }
+
+        content_widget = content_widget.add { type = 'frame', style = 'inside_shallow_frame' }
+        content_widget = content_widget.add { type = 'frame', style = 'slot_button_deep_frame' }
+        n = 0
+        local first_cat = nil
+        local categorized_items = {}
+        local pair_obj = nil
+        if market.type == market_type.item then
+            pair_obj = prototypes.get_item_filtered({})
+        elseif market.type == market_type.fluid then
+            pair_obj = prototypes.get_fluid_filtered({})
+        end
+        new_price = {}
+        for name, item in pairs(pair_obj) do
+            local is_fluid = (market.type == market_type.fluid)
+            local recipe = player.force.recipes[name]
+            local unlocked = false
+            if stg_unknown_tech then
+                unlocked = true
+            else
+                if recipe and recipe.enabled then
+                    unlocked = true
+                elseif is_fluid then
+                    for _, technology in pairs(player.force.technologies) do
+                        if technology.enabled and technology.researched then
+                            for _, effect in pairs(technology.prototype.effects) do
+                                if effect.type == "unlock-recipe" and effect.recipe == name then
+                                    unlocked = true
+                                    break
+                                end
+                            end
+                        end
+                        if unlocked then
+                            break
+                        end
+                    end
+
+                    if not unlocked then
+                        unlocked = (item.subgroup.name == "fluid-recipes")
+                    end
+
+                    if not unlocked then
+                        for _, recipe in pairs(player.force.recipes) do
+                            if recipe.enabled then
+                                for _, product in pairs(recipe.products) do
+                                    if product.type == "fluid" and product.name == name then
+                                        unlocked = true
+                                        break
+                                    end
+                                end
+                            end
+                            if unlocked then
+                                break
+                            end
+                        end
+                    end
+                end
+            end
+
+            if not unlocked then
+                unlocked = (item.group.name == "raw-resource") or (item.subgroup.name == "raw-resource")
+            end
+
+            if unlocked then
+                local group = item.group.name
+                local subgroup = item.subgroup.name
+
+                categorized_items[group] = categorized_items[group] or {}
+                categorized_items[group][subgroup] = categorized_items[group][subgroup] or {}
+
+                if first_cat == nil then
+                    first_cat = group
+                end
+
+                table.insert(categorized_items[group][subgroup], item)
+            end
+        end
+
+        content_list = {}
+        for group_name, subgroups in pairs(categorized_items) do
+            if market.type == market_type.item then
+                local btn = table_tab.add { type = "sprite-button", name = 'mbm_btn_cat_sel=' .. group_name, sprite = "item-group/" .. group_name }
+                btn.style.height = 100
+                btn.style.width = 100
+            elseif market.type == market_type.fluid then
+
+                local btn = table_tab.add { type = "sprite-button", name = 'mbm_btn_cat_sel=' .. group_name, sprite = "item-group/" .. group_name }
+                btn.style.height = 100
+                btn.style.width = 100
+            end
+            local tab_content = content_widget.add { type = "scroll-pane", name = group_name .. "_scroll_pane" }
+            local tab_content1 = tab_content.add { type = 'frame', style = 'inside_shallow_frame', direction = 'vertical', vertical_scroll_policy = 'auto' }
+            local tab_content2 = tab_content1.add { type = 'frame', style = 'slot_button_deep_frame', direction = 'vertical', vertical_scroll_policy = 'auto' }
+            if market.type == market_type.item then
+                tab_content.style.maximal_height = 400
+                tab_content.style.minimal_height = 400
+                tab_content.style.minimal_width = 490
+                tab_content2.style.minimal_width = 490
+                tab_content2.style.minimal_height = 400
+            elseif market.type == market_type.fluid then
+                tab_content.style.maximal_height = 200
+                tab_content.style.minimal_height = 200
+                tab_content.style.minimal_width = 490
+                tab_content2.style.minimal_width = 490
+                tab_content2.style.minimal_height = 200
+            end
+            local tab_content3 = tab_content2.add({ type = 'table', column_count = 1 })
+
+            tab_content3.style.top_margin = 0
+            tab_content3.style.vertical_spacing = 0
+            for subgroup_name, items in pairs(subgroups) do
+                local subgroup_frame = tab_content3.add({ type = 'table', column_count = 10 })
+                subgroup_frame.style.top_margin = 0
+                subgroup_frame.style.vertical_spacing = 0
+                subgroup_frame.style.horizontal_spacing = 0
+                subgroup_frame.style.cell_padding = 0
+
+                -- Aggiungi ogni item sbloccato del sottogruppo
+                for _, item in ipairs(items) do
+                    local oldprice = 0
+                    if storage.prices[item.name] then
+                        oldprice = storage.prices[item.name].current
+                    end
+                    local price_txt = format_money(oldprice) --..format_money(calculate_item_price(item.name,0,player))
+                    if market.type == market_type.item then
+                        subgroup_frame.add({ type = "sprite-button", name = "mbm_btn_sel_elem=" .. item.name, sprite = "item/" .. item.name, style = 'slot_button', tooltip = { '', price_txt, ' - ', item.localised_name } })
+                    elseif market.type == market_type.fluid then
+
+                        subgroup_frame.add({ type = "sprite-button", name = "mbm_btn_sel_elem=" .. item.name, sprite = "fluid/" .. item.name, style = 'slot_button', tooltip = { '', price_txt, ' - ', item.localised_name } })
+                    end
+                    --                                 tooltip = format_money(price.current) })
+                end
+            end
+            content_list[group_name] = content_list[group_name] or { tab_content, tab_content1, tab_content2, tab_content3 }
+            tab_content.visible = false
+            tab_content1.visible = false
+            tab_content2.visible = false
+            tab_content3.visible = false
+        end
+        set_content_visible(first_cat, true)
+    end
+
+end
+--------------------------------------------------------------------------------------
+local function open_gui_event(event)
+    local player = game.players[event.player_index]
+    local surface = game.players[event.player_index].physical_surface
+    local force = game.players[event.player_index].force
+    if event.entity ~= nil then
+        if storage.market_list ~= nil then
+            if storage.market_list[event.entity.unit_number] ~= nil then
+                local market = storage.market_list[event.entity.unit_number]
+                if market.type == market_type.item then
+                    if market.main_chest == nil then
+                        local swap_entity = surface.create_entity({ name = event.entity.name, position = { x = event.entity.position.x, y = event.entity.position.y }, force = force })
+                        swap_entity.destructible = false
+                        swap_entity.minable = false
+                        swap_chests(market.entity, swap_entity)
+                        player.opened = swap_entity
+                        market.main_chest = market.entity
+                        market.entity = swap_entity
+
+                    end
+                end
+                local signals_enable = nil
+                if market.type == market_type.item then
+                    signals_enable = market.main_chest.get_signals(defines.wire_connector_id.circuit_red, defines.wire_connector_id.circuit_green)
+                else
+                    signals_enable = market.entity.get_signals(defines.wire_connector_id.circuit_red, defines.wire_connector_id.circuit_green)
+                end
+                market_opened = market
+                draw_menu(market, player)
+                if signals_enable then
+                    if market_opened.signal_cbx_auto_trade then
+                        market.signal_gui_radio_circuit.enabled = true
+                    end
+                else
+                    market.signal_gui_radio_circuit.enabled = false
+                    market_opened.signal_cbx_auto_circuit = false
+                    market_opened.signal_gui_radio_self.state = true
+                    market_opened.signal_gui_radio_circuit.state = false
+                    market_opened.signal_cbx_constant = false
+                    if player.gui.relative["zra_market_menu"] then
+                        player.gui.relative["zra_market_menu"].destroy()
+                    end
+                    draw_menu(market_opened, player)
+                    storage.market_opened = market_opened
+                end
+            end
+        end
+    end
+end
+script.on_event(defines.events.on_gui_opened, open_gui_event)
 
 --------------------------------------------------------------------------------------
-local function on_init()
-	-- called once, the first time the mod is loaded on a game (new or existing game)
-	---gui.init()
-	---gui.build_lookup_tables()
-	init_storages()
-	init_forces()
-	init_players()
+local function close_gui_event(event)
+    local player = game.players[event.player_index]
+    if event.entity ~= nil then
+        if next(storage.market_list) ~= nil then
+            market_opened = storage.market_opened or market_opened
+            if market_opened ~= nil then
+                if player.gui.screen['zra_elem_menu'] then
+                    player.gui.screen['zra_elem_menu'].destroy()
+                end
+                if player.gui.relative["zra_market_menu"] then
+                    player.gui.relative["zra_market_menu"].destroy()
+                    if market_opened.type == market_type.item then
+                        swap_chests(market_opened.entity, market_opened.main_chest)
+                        market_opened.entity.destructible = true
+                        market_opened.entity.minable = true
+                        market_opened.entity.destroy()
+                        market_opened.entity = nil
+                        market_opened.entity = market_opened.main_chest
+                        market_opened.main_chest = nil
+
+                    end
+                    market_opened = nil
+                    storage.market_opened = nil
+                end
+            end
+        end
+    end
 end
-
-script.on_init(on_init)
-
----local function on_load()
----	gui.build_lookup_tables()
----end
----script.on_load(on_load)
+script.on_event(defines.events.on_gui_closed, close_gui_event)
 
 --------------------------------------------------------------------------------------
-local function on_configuration_changed(data)
-	
-	-- detect any mod or game version change
-	if data.mod_changes ~= nil then
-		
-		init_storages()
-		init_forces()
-		init_players()
-		init_tax_rates()
-		
-		local changes = data.mod_changes[debug_mod_name]
-		---gui.init()
-		---gui.check_filter_validity()
-		
-		close_guis()
+local function on_creation(event)
 
-		-- if any other mod install or uninstall, rescan prices ! and clean orders
+    local ent = event.entity
+    local ent_name = ent.name
+    --local player = game.players[event.player_index]
+    --local surface = game.players[event.player_index].physical_surface
+    --local force = game.players[event.player_index].force
+    local prefix = string.sub(ent_name, 1, 15)
+    local market_seller = nil
+    local type = nil
+    if prefix == "trader-chst-sel" and ent.destructible == true then
+        market_seller = true
+        type = market_type.item
+    elseif prefix == "trader-chst-buy" and ent.destructible == true then
+        market_seller = false
+        type = market_type.item
+    elseif prefix == "trader-tank-sel" and ent.destructible == true then
+        market_seller = true
+        type = market_type.fluid
+    elseif prefix == "trader-tank-buy" and ent.destructible == true then
+        market_seller = false
+        type = market_type.fluid
+    elseif prefix == "trader-accu-sel" and ent.destructible == true then
+        market_seller = true
+        type = market_type.energy
+    elseif prefix == "trader-accu-buy" and ent.destructible == true then
+        market_seller = false
+        type = market_type.energy
+    end
+    if market_seller ~= nil then
+        storage.market_list[ent.unit_number] = {
+            type = type,
+            entity = ent,
+            is_seller = market_seller
+        }
 
-		if not storage.prices_computed then
-			debug_print( "update other mods" )
-			update_techs_costs()
-			update_objects_prices_start()		
-		end
-
-		-- update_groups()
-
-		clean_orders_and_transactions()
-	end
+    end
 end
 
-script.on_configuration_changed(on_configuration_changed)
-
-script.on_event(defines.events.on_runtime_mod_setting_changed, configure_settings)
+script.on_event(defines.events.on_built_entity, on_creation)
+script.on_event(defines.events.on_robot_built_entity, on_creation)
 
 --------------------------------------------------------------------------------------
-local function on_force_created(event)
-	-- called at player creation
-	local force = event.force
-	debug_print( "force created ", force.name )
-	
-	init_force(force)
+local function on_destruction(event)
+    local ent = event.entity
+    local ent_name = ent.name
+    if event.entity ~= nil then
+        if next(storage.market_list) ~= nil then
+            if storage.market_list[event.entity.unit_number] ~= nil then
+                storage.market_list[event.entity.unit_number] = nil
+            end
+        end
+    end
 end
 
-script.on_event(defines.events.on_force_created, on_force_created )
+script.on_event(defines.events.on_entity_died, on_destruction)
+script.on_event(defines.events.on_robot_pre_mined, on_destruction)
+script.on_event(defines.events.on_pre_player_mined_item, on_destruction)
 
 --------------------------------------------------------------------------------------
-local function on_forces_merging(event)
-	local force1 = event.source
-	local force2 = event.destination
-	debug_print( "force merging ", force1.name, " into ", force2.name )
-	
-	local force_mem1 = storage.force_mem[force1.name]
-	local force_mem2 = storage.force_mem[force2.name]
-	
-	force_mem2.credits = force_mem2.credits + force_mem1.credits
-	force_mem2.credits_startday = force_mem2.credits_startday + force_mem1.credits_startday
-	force_mem2.credits_lastday = force_mem2.credits_lastday + force_mem1.credits_lastday
-	force_mem2.var_lastday = force_mem2.var_lastday + force_mem1.var_lastday
-	force_mem2.sales = force_mem2.sales + force_mem1.sales
-	force_mem2.sales_taxes = force_mem2.sales_taxes + force_mem1.sales_taxes
-	force_mem2.purchases = force_mem2.purchases + force_mem1.purchases
-	force_mem2.purchases_taxes = force_mem2.purchases_taxes + force_mem1.purchases_taxes
-	
-	concat_lists(force_mem2.traders_sell, force_mem1.traders_sell)
-	concat_lists(force_mem2.traders_buy, force_mem1.traders_buy)
-
-	-- storage.force_mem[force1.name] = nil
-
-	compute_force_data(force_mem2)
-	update_guis_force(force2,true)
+local function show_custom_tooltip(player, item_stack)
+    if storage.market_money_gui[player.index] then
+        if storage.prices[item_stack.name] then
+            if item_stack.quality then
+                storage.market_money_gui[player.index].lbl_money_counter.caption = format_money(get_price_quality(storage.prices[item_stack.name].current, quality_type[item_stack.quality.name] + 1))
+            else
+                storage.market_money_gui[player.index].lbl_money_counter.caption = format_money(get_price_quality(storage.prices[item_stack.name].current, 0))
+            end
+        end
+    end
 end
 
-script.on_event(defines.events.on_forces_merging, on_forces_merging )
+script.on_event(defines.events.on_player_cursor_stack_changed, function(event)
+    local player = game.get_player(event.player_index)
+    local cursor_stack = player.cursor_stack
+
+    if cursor_stack and cursor_stack.valid_for_read and cursor_stack.valid then
+        show_custom_tooltip(player, cursor_stack)
+    else
+        gui_money_counter_update()
+    end
+end)
 
 --------------------------------------------------------------------------------------
-local function on_cutscene_cancelled(event)
-	-- called after player creation, when we can access the inventory
-	local player = game.players[event.player_index]
-	debug_print( "player created ", player.name )
-	
-	init_player(player)
-	
-	if debug_status == 1 then
-		local inv = player.get_inventory(defines.inventory.character_main)
-		inv.insert({name="fast-inserter", count=50})
-		inv.insert({name="trader-chst-sel", count=10})
-		inv.insert({name="trader-chst-buy", count=10})
-		inv.insert({name="trader-tank-sel", count=10})
-		inv.insert({name="trader-tank-buy", count=10})
-		inv.insert({name="trader-accu-sel", count=10})
-		inv.insert({name="trader-accu-buy", count=10})
-		inv.insert({name="ucoin", count=100000})
-		debug_print("created debug inv")
-	end
+local function on_click(event)
+    local player = game.players[event.player_index]
+    local elementSplit = str_split(event.element.name, '-')
+    local btn = elementSplit[1]
+    local order_id = tonumber(elementSplit[2])
+    local catsplit = str_split(event.element.name, '=')
+    local catbtn = catsplit[1] or nil
+    local cat_id = catsplit[2] or nil
+
+    if player.gui.screen['zra_elem_menu'] then
+
+    end
+    if market_opened == nil then
+        return
+    end
+
+    if btn == 'btn_mbm_new_order' then
+        gui_add_new_order(market_opened)
+        gui_update_prices(market_opened)
+    end
+    if btn == 'btn_mbm_delete_order' then
+        gui_clear(market_opened.gui_orders_table)
+        table.remove(market_opened.orders, order_id)
+        gui_update_orders(market_opened)
+        gui_update_prices(market_opened)
+    end
+    if btn == 'btn_mbm_wipe_order' then
+        market_opened.orders = {}
+        gui_clear(market_opened.gui_orders_table)
+        gui_update_orders(market_opened)
+    end
+    if btn == 'btn_mbm_buy' then
+        gui_buy(market_opened)
+    end
+    if btn == 'btn_mbm_eval' then
+        gui_eval_all(market_opened)
+    end
+    if btn == 'btn_mbm_sell' then
+        gui_sell_all(market_opened)
+
+    end
+    if btn == 'cbx_mbm_activate_auto' then
+        market_opened.signal_cbx_auto_trade = event.element.state
+        market_opened.signal_gui_radio_circuit.enabled = event.element.state
+        market_opened.signal_gui_radio_self.enabled = event.element.state
+        market_opened.signal_gui_signal_active_a.enabled = event.element.state
+        market_opened.signal_gui_drp_condition.enabled = event.element.state
+        market_opened.signal_gui_cbx_constant.enabled = event.element.state
+        if not market_opened.signal_cbx_constant then
+            market_opened.signal_gui_signal_const_b.enabled = event.element.state
+        else
+            market_opened.signal_gui_signal_active_b.enabled = event.element.state
+        end
+    end
+    if btn == 'rbx_mbm_activate_auto_circuit' then
+        market_opened.signal_cbx_auto_circuit = true
+        if event.element.state == true then
+            market_opened.signal_gui_radio_self.state = false
+            market_opened.signal_gui_radio_circuit.state = true
+        end
+    end
+    if btn == 'rbx_mbm_activate_auto_self' then
+        market_opened.signal_cbx_auto_circuit = false
+        if event.element.state == true then
+            market_opened.signal_gui_radio_self.state = true
+            market_opened.signal_gui_radio_circuit.state = false
+            market_opened.signal_cbx_constant = false
+            if player.gui.relative["zra_market_menu"] then
+                player.gui.relative["zra_market_menu"].destroy()
+            end
+            draw_menu(market_opened, player)
+        end
+    end
+    if btn == 'cbx_mbm_activate_auto_cons' then
+        local enbl = event.element.state
+        if market_opened.signal_cbx_auto_circuit == false then
+            event.element.state = false
+        else
+            market_opened.signal_cbx_constant = enbl
+            if player.gui.relative["zra_market_menu"] then
+                player.gui.relative["zra_market_menu"].destroy()
+            end
+            draw_menu(market_opened, player)
+        end
+
+    end
+    if btn == 'btn_mbm_elmnt_signal_activate_a' then
+        market_opened.signal_automatic_a = event.element.elem_value
+    end
+    if btn == 'btn_mbm_elmnt_signal_activate_b' then
+        market_opened.signal_automatic_b = event.element.elem_value
+    end
+    if catbtn == 'mbm_btn_cat_sel' then
+        if player.gui.screen['zra_elem_menu'] then
+            if content_list then
+                for category, _ in pairs(content_list) do
+
+                    set_content_visible(category, false)
+                    --content_list[category].visible = false
+                end
+                --content_list[cat_id].visible = true
+                set_content_visible(cat_id, true)
+
+            end
+        end
+    end
+    if catbtn == 'mbm_btn_sel_elem' then
+        if player.gui.screen['zra_elem_menu'] and player.gui.relative['zra_market_menu'] then
+            if market_opened.type == market_type.item then
+
+                market_opened.orders[content_select_order_id].item = cat_id
+                market_opened.orders[content_select_order_id].item_btn.sprite = event.element.sprite
+            elseif market_opened.type == market_type.fluid then
+                market_opened.orders[1].item = cat_id
+                market_opened.orders[1].item_btn.sprite = event.element.sprite
+            end
+            gui_update_prices(market_opened)
+            if player.gui.screen['zra_elem_menu'] then
+                player.gui.screen['zra_elem_menu'].destroy()
+            end
+
+        end
+    end
+    if btn == 'btn_close_elemsel' then
+        if player.gui.screen['zra_elem_menu'] then
+            player.gui.screen['zra_elem_menu'].destroy()
+        end
+    end
+    if btn == 'btn_mbm_elmnt' then
+        draw_elem_gui(market_opened, player)
+        content_select_order_id = order_id
+        --if event.element.elem_value ~= market_opened.orders[order_id].item then
+        --    if market_opened.type ~= market_type.energy then
+        --        if event.element.elem_value ~= 'fusion-plasma' and event.element.elem_value ~= 'lava' then
+        --            market_opened.orders[order_id].item = event.element.elem_value
+        --            gui_update_prices(market_opened)
+        --
+        --        end
+        --        --build_menu_objects(player,true,player_mem.ask_sel)
+        --    end
+        --end
+    end
 end
 
-script.on_event(defines.events.on_cutscene_cancelled, on_cutscene_cancelled)
-
---------------------------------------------------------------------------------------
-local function on_player_joined_game(event)
-	-- called in SP(once) and MP(at every connect), eventually after on_player_created
-	local player = game.players[event.player_index]
-	debug_print( "player joined ", player.name )
-	
-	init_player(player)
-end
-
-script.on_event(defines.events.on_player_joined_game, on_player_joined_game )
-
---------------------------------------------------------------------------------------
-local function on_player_cursor_stack_changed(event)
-	local player = game.players[event.player_index]
-	local player_mem = storage.player_mem[player.index]
-	
-	-- debug_print( "on_player_cursor_stack_changed ", player.name )
-	
-	if player.cursor_stack and player.cursor_stack.valid_for_read then
-		player_mem.cursor_name = player.cursor_stack.name
-	else	
-		player_mem.cursor_name = nil
-	end
-	
-	update_bar(player)
-end
-
-script.on_event(defines.events.on_player_cursor_stack_changed, on_player_cursor_stack_changed )
-
---------------------------------------------------------------------------------------
-local function suffix_to_level(suffix)
-	if suffix == "" then
-		return(1)
-	elseif suffix == "-mk2" then
-		return(2)
-	elseif suffix == "-mk3" then
-		return(3)
-	elseif suffix == "-mk4" then
-		return(4)
-	end
-end
-
---------------------------------------------------------------------------------------
-local function on_creation( event )
-	local ent = event.entity
-	local ent_name = ent.name
-	local prefix = string.sub(ent_name,1,15)
-	local sell_or_buy = nil
-	local type = nil
-	
-	-- debug_print( "creation ", ent_name )
-	
-	if prefix == "trader-chst-sel" then
-		sell_or_buy = true
-		type = trader_type.item
-	elseif prefix == "trader-chst-buy" then
-		sell_or_buy = false
-		type = trader_type.item
-	elseif prefix == "trader-tank-sel" then
-		sell_or_buy = true
-		type = trader_type.fluid
-	elseif prefix == "trader-tank-buy" then
-		sell_or_buy = false
-		type = trader_type.fluid
-	elseif prefix == "trader-accu-sel" then
-		sell_or_buy = true
-		type = trader_type.energy
-	elseif prefix == "trader-accu-buy" then
-		sell_or_buy = false
-		type = trader_type.energy
-	end
-	
-	if sell_or_buy ~= nil then
-		local suffix = string.sub(ent_name,16,19)
-		local level = suffix_to_level(suffix)
-		local force_mem = storage.force_mem[ent.force.name]
-		-- if ent.force.name = 'neutral' then force_mem = storage.force_mem['player'] end
-		-- this is how you would fix the neutral chest bug, see issue 22, however i cant find
-		-- that setting to test it so im not exactly sure whats up
-		local trader = { entity=ent, sell_or_buy = sell_or_buy, type = type }
-		init_trader(trader,level)
-		
-		trader.n_period = force_mem.n_period
-		trader.period = force_mem.period
-
-		if sell_or_buy then
-			table.insert(force_mem.traders_sell,trader)
-		else
-			if type == trader_type.item then
-				trader.orders = {
-					{name = "ucoin", count = 0, price = storage.prices["ucoin"].current, quality = 1 },
-				}
-			elseif type == trader_type.fluid then
-				trader.orders = {
-					{name = "crude-oil", count = 0, price = storage.prices["crude-oil"].current, quality = nil },
-				}
-			elseif type == trader_type.energy then
-				trader.orders = {
-					{name = energy_name, count = 0, price = storage.prices[energy_name].current, quality = nil },
-				}
-			end
-			table.insert(force_mem.traders_buy,trader)
-		end
-		
-		compute_trader_data(trader)
-	end
-end
-
-script.on_event(defines.events.on_built_entity, on_creation )
-script.on_event(defines.events.on_robot_built_entity, on_creation )
-
---------------------------------------------------------------------------------------
-local function on_destruction( event )
-	local ent = event.entity
-	local ent_name = ent.name
-	local prefix = string.sub(ent_name,1,15)
-	
-	if prefix == "trader-chst-sel" or prefix == "trader-tank-sel" or prefix == "trader-accu-sel" then
-		-- debug_print( "destruction ", ent_name )
-		local force_mem = storage.force_mem[ent.force.name]
-		for i, trader in pairs(force_mem.traders_sell) do
-			if trader.entity == ent then
-				table.remove(force_mem.traders_sell,i)
-				break
-			end
-		end
-		
-	elseif prefix == "trader-chst-buy" or prefix == "trader-tank-buy" or prefix == "trader-accu-buy" then
-		-- debug_print( "destruction ", ent_name )
-		local force_mem = storage.force_mem[ent.force.name]
-		for i, trader in pairs(force_mem.traders_buy) do
-			if trader.entity == ent then
-				trader.orders = nil
-				table.remove(force_mem.traders_buy,i)
-				break
-			end
-		end
-	end
-end
-
-script.on_event(defines.events.on_entity_died, on_destruction )
-script.on_event(defines.events.on_robot_pre_mined, on_destruction )
-script.on_event(defines.events.on_pre_player_mined_item, on_destruction )
-
---------------------------------------------------------------------------------------
-local function on_entity_settings_pasted(event)
-	local ent1 = event.source
-	local ent2 = event.destination
-	local prefix1 = string.sub(ent1.name,1,15)
-	local prefix2 = string.sub(ent2.name,1,15)
-	local trader1, trader2
-
-	debug_print( "on_entity_settings_pasted src=", ent1.name, " dest=", ent2.name )
-	
-	if prefix1 == "trader-chst-sel" or prefix1 == "trader-tank-sel" or prefix1 == "trader-accu-sel" then
-		local force_mem = storage.force_mem[ent1.force.name]
-		trader1 = find_trader_sell(force_mem,ent1)
-	elseif prefix1 == "trader-chst-buy" or prefix1 == "trader-tank-buy" or prefix1 == "trader-accu-buy" then
-		local force_mem = storage.force_mem[ent1.force.name]
-		trader1 = find_trader_buy(force_mem,ent1)
-	end
-	
-	if prefix2 == "trader-chst-sel" or prefix2 == "trader-tank-sel" or prefix2 == "trader-accu-sel" then
-		local force_mem = storage.force_mem[ent2.force.name]
-		trader2 = find_trader_sell(force_mem,ent2)
-	elseif prefix2 == "trader-chst-buy" or prefix2 == "trader-tank-buy" or prefix2 == "trader-accu-buy" then
-		local force_mem = storage.force_mem[ent2.force.name]
-		trader2 = find_trader_buy(force_mem,ent2)
-	end
-	
-	
-	if trader1 and trader2 then
-		copy_trader(trader1,trader2)
-	end
-end
-
-script.on_event(defines.events.on_entity_settings_pasted,on_entity_settings_pasted)
-
--------------------------------------------------------------------------------------
-local function on_tick(event)
-	if storage.tick >= 99 then 
-		storage.tick = 0
-		
-	elseif storage.tick%20 == 1 then
-		-- check hour change
-		get_hour()
-		
-		-- manage prices list build
-
-		if storage.prices_computed then
-			
-			if (update_objects_prices()) then
-				-- update_objects_prices_end()
-				
-				update_groups()
-				-- export_uncommons()
-				clean_orders_and_transactions()
-				update_dynamic_prices()
-
-				close_guis()
-
-				multiply_prices()
-
-				message_all({"blkmkt-gui-rescan-done"})
-			end
-		end
-		
-		-- manage opened traders
-		for _, player in pairs(game.players) do
-			if player.connected then
-				local player_mem = storage.player_mem[player.index]
-				local opened = player.opened
-				
-				if opened and player.opened_gui_type ~= 5 then
-					if opened ~= player_mem.opened then
-						if player_mem.opened_trader then
-							player_mem.opened_trader.editer = nil
-							
-							build_menu_trader(player,player_mem,false)
-							build_menu_objects(player,false)
-						end
-						
-						local force_mem = storage.force_mem[player.force.name]
-						local prefix = string.sub(opened.name,1,15)
-						
-						if prefix == "trader-chst-sel" or prefix == "trader-tank-sel" or prefix == "trader-accu-sel" then
-							build_menu_objects(player,false)
-							local trader = find_trader_sell(force_mem,opened)
-							if trader then
-								if trader.editer == nil or not trader.editer.connected then
-									player_mem.opened_trader = trader
-									trader.editer = player
-									build_menu_trader(player,player_mem,true)
-									update_menu_trader(player,player_mem,true)
-								else
-									player.print({"blkmkt-gui-trader-edited",trader.editer.name})
-								end
-							end
-						elseif prefix == "trader-chst-buy" or prefix == "trader-tank-buy" or prefix == "trader-accu-buy" then
-							build_menu_objects(player,false)
-							local trader = find_trader_buy(force_mem,opened)
-							if trader then
-								if trader.editer == nil or not trader.editer.connected then
-									player_mem.opened_trader = trader
-									trader.editer = player
-									build_menu_trader(player,player_mem,true)
-									update_menu_trader(player,player_mem,true)
-								else
-									player.print({"blkmkt-gui-trader-edited",trader.editer.name})
-								end
-							end
-						end
-						
-						player_mem.opened = opened
-					end
-				else
-					if player_mem.opened then
-						if player_mem.opened_trader then
-							player_mem.opened_trader.editer = nil
-							
-							build_menu_trader(player,player_mem,false)
-							build_menu_objects(player,false)
-						end
-						
-						player_mem.opened = nil
-						player_mem.opened_trader = nil
-					end
-				end
-			end
-		end
-	
-	elseif storage.tick == 18 then
-		-- listen signals
-		
-		for name, force in pairs(game.forces) do
-			local force_mem = storage.force_mem[name]
-			listen_traders(force_mem)
-		end
-
-		-- EVERY HOUR : 
-		if not storage.prices_computed and storage.hour_changed == 4 then
-			storage.hour_changed = storage.hour_changed - 1 
-			
-		end
-		
-	elseif storage.tick == 38 then
-		-- EVERY HOUR : do sales
-		
-		if not storage.prices_computed and storage.hour_changed == 3 then
-			storage.hour_changed = storage.hour_changed - 1 
-			
-			for name, force in pairs(game.forces) do
-				local force_mem = storage.force_mem[name]
-				local money = 0
-				-- debug_print("force ", name, " traders=",#force_mem.traders_sell)
-				for i=#force_mem.traders_sell,1,-1 do
-					local trader = force_mem.traders_sell[i]
-					if storage.hour % trader.period == 0 then
-						trader.hour_period = storage.hour
-						if trader.auto and not force_mem.pause then
-							local ent = trader.entity
-							-- if not(trader.daylight and trader.type == trader_type.energy and ent.surface.darkness > 0.5) then
-								local money1 = sell_trader(trader,force_mem)
-								if money1 == nil then
-									table.remove(force_mem.traders_sell,i)
-								else
-									money = money + money1
-								end
-							-- end
-						end
-					end
-				end
-				-- if money ~= 0 then
-					-- update_bars(force)
-				-- end
-			end
-		end
-		
-	elseif storage.tick == 58 then
-		-- EVERY HOUR : do purchases
-		
-		if not storage.prices_computed and storage.hour_changed == 2 then
-			storage.hour_changed = storage.hour_changed - 1 
-			
-			for name, force in pairs(game.forces) do
-				local force_mem = storage.force_mem[name]
-				local money = 0
-				-- debug_print("force ", name, " traders=",#force_mem.traders_buy)
-				for i=#force_mem.traders_buy,1,-1 do
-					local trader = force_mem.traders_buy[i]
-					if storage.hour % trader.period == 0 then
-						trader.hour_period = storage.hour
-						if trader.auto and not force_mem.pause then
-							local money1 = buy_trader(trader,force_mem)
-							if money1 == nil then
-								table.remove(force_mem.traders_buy,i)
-							else
-								money = money + money1
-							end
-						end
-					end
-				end
-				-- if money ~= 0 then
-					-- update_bars(force)
-				-- end
-			end
-		end
-		
-	elseif storage.tick == 78 then
-		if not storage.prices_computed and storage.hour_changed == 1 then
-			storage.hour_changed = storage.hour_changed - 1 
-			
-			-- EVERY HOUR : compute period averages
-		
-			for name, force in pairs(game.forces) do
-				local force_mem = storage.force_mem[name]
-				
-				for i=#force_mem.traders_sell,1,-1 do
-					local trader = force_mem.traders_sell[i]
-					if trader.auto and (not force_mem.pause) and storage.hour % trader.period == 0 then
-						compute_trader_data(trader)
-						trader.money_period = trader.money_tot - trader.money_tot_start_period
-						-- debug_print(trader.money_tot_start_period, " -> ", trader.money_tot, " = ", trader.money_period)
-						trader.money_tot_start_period = trader.money_tot 
-					end
-				end
-				
-				for i=#force_mem.traders_buy,1,-1 do
-					local trader = force_mem.traders_buy[i]
-					if trader.auto and (not force_mem.pause) and storage.hour % trader.period == 0 then
-						compute_trader_data(trader)
-						trader.money_period = trader.money_tot - trader.money_tot_start_period
-						-- debug_print(trader.money_tot_start_period, " -> ", trader.money_tot, " = ", trader.money_period)
-						trader.money_tot_start_period = trader.money_tot 
-					end
-				end
-				compute_force_data(force_mem)
-			end
-			
-			-- EVERY HOUR : update average display on opened traders and bar price
-			
-			for _, player in pairs(game.players) do
-				if player.connected then
-					local player_mem = storage.player_mem[player.index]
-					-- if player_mem.opened_trader then
-						-- update_menu_trader(player,player_mem,false)
-					-- end
-					update_menu_gen(player,player_mem)
-					update_bar(player)
-				end
-			end
-		end
-		
-	elseif storage.tick == 98 then
-		if storage.day_changed then
-			-- day change
-
-			debug_print("NEW DAY")
-			storage.day_changed = false
-			
-			-- EVERY DAY: compute day averages
-			
-			for name, force in pairs(game.forces) do
-				local force_mem = storage.force_mem[name]
-				force_mem.credits_lastday = force_mem.credits - force_mem.credits_startday
-				
-				if force_mem.credits_startday == 0 then
-					force_mem.var_lastday = 0
-				else
-					force_mem.var_lastday = 0.1 * math.floor(0.5+force_mem.credits_lastday * 1000 / force_mem.credits_startday)
-				end
-				
-				force_mem.credits_startday = force_mem.credits
-			end
-			
-			-- EVERY DAY : update dynamic prices , evolution price
-			
-			update_dynamic_prices()
-			
-			-- EVERY DAY: update all guis (new prices everywhere)
-			
-			update_guis(true)
-		end
-	end
-	
-	storage.tick = storage.tick + 1 
-end
-
-script.on_event(defines.events.on_tick, on_tick)
-
---------------------------------------------------------------------------------------
-local function on_gui_click(event)
-	local player = game.players[event.player_index]
-	local force = player.force
-	local player_mem = storage.player_mem[player.index]
-	local event_name = event.element.name
-	local prefix = string.sub(event_name,1,15)
-	local nix = tonumber(string.sub(event_name,16,19))
-	local suffix = string.sub(event_name,20)
-	
-	if storage.prices_computed then return end
-	
-	-- debug_print( "on_gui_click ", player.name, " ", event_name )
-
-	if event_name == "but_blkmkt_main" then
-		build_menu_gen(player,player_mem)
-		update_menu_gen( player, player_mem )
-		
-	elseif event_name == "but_blkmkt_credits"then
-		player_mem.ask_sel = nil
-		build_menu_objects(player)
-
-	elseif event_name == "but_blkmkt_gen_show_prices"then
-		player_mem.ask_sel = nil
-		build_menu_objects(player)
-		
-	elseif event_name == "but_blkmkt_gen_export_prices"then
-		if debug_status == 1 then
-			-- debug_print("RAZ")
-			list_groups()
-			list_techs_costs()
-			list_prices()
-			list_recipes()
-		end
-		
-		export_prices()
-		-- export_uncommons()
-	
-	elseif event_name == "but_blkmkt_gen_rescan_prices"then
-		update_techs_costs()
-		update_objects_prices_start()
-		-- update_groups()
-		
-	elseif event_name == "chk_blkmkt_gen_pause" then
-		local force_mem = storage.force_mem[force.name]
-		
-		force_mem.pause = event.element.state
-		
-		update_guis_force(force,false)
-		
-	elseif event_name == "but_blkmkt_gen_auto_all"then
-		local force_mem = storage.force_mem[force.name]
-
-		for _, trader in pairs(force_mem.traders_sell) do
-			trader.auto = true
-		end
-	
-		for _, trader in pairs(force_mem.traders_buy) do
-			trader.auto = true
-		end
-	
-		-- update_menu_trader(player,player_mem,false)
-		update_guis_force(force,false)
-		
-	elseif event_name == "but_blkmkt_gen_auto_none"then
-		local force_mem = storage.force_mem[force.name]
-
-		for _, trader in pairs(force_mem.traders_sell) do
-			trader.auto = false
-		end
-	
-		for _, trader in pairs(force_mem.traders_buy) do
-			trader.auto = false
-		end
-	
-		-- update_menu_trader(player,player_mem,false)
-		update_guis_force(force,false)
-		
-	elseif event_name == "but_blkmkt_gen_sell_now"then
-		local force_mem = storage.force_mem[force.name]
-		local money = 0
-		
-		for i=#force_mem.traders_sell,1,-1 do
-			local trader = force_mem.traders_sell[i]
-			local ent = trader.entity
-			local money1 = sell_trader(trader,force_mem)
-			if money1 == nil then
-				table.remove(force_mem.traders_sell,i)
-			else
-				money = money + money1
-			end
-		end
-		if money ~= 0 then
-			compute_force_data(force_mem)
-			update_guis_force(force,false)
-			-- update_bars(force)
-			-- update_menu_gen(player,player_mem)
-			-- update_menu_trader(player,player_mem,true)
-		end
-		
-	elseif event_name == "but_blkmkt_gen_buy_now"then
-		local force_mem = storage.force_mem[force.name]
-		local money = 0
-		
-		for i=#force_mem.traders_buy,1,-1 do
-			local trader = force_mem.traders_buy[i]
-			local ent = trader.entity
-			local money1 = buy_trader(trader,force_mem)
-			if money1 == nil then
-				-- debug_print("buy !" )
-				table.remove(force_mem.traders_buy,i)
-			else
-				money = money + money1
-			end
-		end
-		
-		if money ~= 0 then
-			compute_force_data(force_mem)
-			update_guis_force(force,false)
-			-- update_bars(force)
-			-- update_menu_gen(player,player_mem)
-			-- update_menu_trader(player,player_mem,true)
-		end
-		
-	elseif event_name == "but_blkmkt_gen_period_down" then
-		build_menu_objects(player,false)
-
-		local force_mem = storage.force_mem[force.name]
-
-		if force_mem.n_period > 2 then
-			force_mem.n_period = force_mem.n_period - 1
-			force_mem.period = periods[force_mem.n_period]
-		end
-		
-		-- update_menu_gen(player,player_mem)
-		update_guis_force(force,false)
-		
-	elseif event_name == "but_blkmkt_gen_period_up" then
-		build_menu_objects(player,false)
-
-		local force_mem = storage.force_mem[force.name]
-
-		if force_mem.n_period < #periods then
-			force_mem.n_period = force_mem.n_period + 1
-			force_mem.period = periods[force_mem.n_period]
-		end
-		
-		-- update_menu_gen(player,player_mem)
-		update_guis_force(force,false)
-		
-	elseif event_name == "but_blkmkt_gen_period_set" then
-		build_menu_objects(player,false)
-
-		local force_mem = storage.force_mem[force.name]
-
-		for _, trader in pairs(force_mem.traders_sell) do
-			trader.n_period = force_mem.n_period
-			trader.period = force_mem.period
-		end
-		
-		for _, trader in pairs(force_mem.traders_buy) do
-			trader.n_period = force_mem.n_period
-			trader.period = force_mem.period
-		end
-
-		-- update_menu_trader(player,player_mem,false)
-		update_guis_force(force,false)
-
-	elseif event_name == "but_blkmkt_gen_close" then
-		build_menu_gen(player,player_mem,false)
-
-	elseif prefix == "but_blkmkt_ilg_" then -- click group in item list
-		-- debug_print(suffix)
-		player_mem.group_sel_name = suffix
-		build_menu_objects(player,true,player_mem.ask_sel)
-
-	elseif prefix == "but_blkmkt_ili_" then -- click item in item list
-		-- debug_print(suffix)
-		player_mem.object_sel_name = suffix
-
-		local trader = player_mem.opened_trader
-		
-		if trader and player_mem.order_sel_n ~= 0 then
-			build_menu_objects(player,false)
-			
-			local order = trader.orders[player_mem.order_sel_n]
-			
-			if order then
-				order.name = player_mem.object_sel_name
-			end
-			
-			compute_trader_data(trader,true)
-			-- update_menu_trader(player,player_mem,true)
-			player_mem.order_sel_n = 0
-		end
-		
-	elseif event_name == "but_blkmkt_itml_refresh" then
-		build_menu_objects(player,true,player_mem.ask_sel)
-		
-	elseif event_name == "but_blkmkt_itml_close" then
-		build_menu_objects(player,false)
-		
-	elseif event_name == "but_blkmkt_itml_cancel" then
-		player_mem.order_sel_n = 0
-		
-		build_menu_objects(player,false)
-		
-	elseif event_name == "chk_blkmkt_trader_auto" then
-		build_menu_objects(player,false)
-		
-		player_mem.opened_trader.auto = player_mem.chk_blkmkt_trader_auto.state
-		
-	elseif event_name == "but_blkmkt_trader_now" then -- sell or buy trader now
-		build_menu_objects(player,false)
-		
-		local force_mem = storage.force_mem[force.name]
-		local trader = player_mem.opened_trader
-		
-		if trader.sell_or_buy then
-			sell_trader(trader,force_mem,storage.tax_rates[0])
-		else
-			buy_trader(trader,force_mem,storage.tax_rates[0])
-		end
-		compute_trader_data(trader, false)
-		-- update_menu_trader(player,player_mem,false)
-		update_bars(force)
-		
-	elseif event_name == "chk_blkmkt_trader_daylight" then
-		build_menu_objects(player,false)
-		
-		player_mem.opened_trader.daylight = player_mem.chk_blkmkt_trader_daylight.state
-		
-	elseif event_name == "but_blkmkt_trader_period_down" then
-		build_menu_objects(player,false)
-		
-		local trader = player_mem.opened_trader
-		
-		if trader.n_period > 2 then
-			trader.n_period = trader.n_period - 1
-			trader.period = periods[trader.n_period]
-		end
-		
-		update_menu_trader(player,player_mem,false)
-		
-	elseif event_name == "but_blkmkt_trader_period_up" then
-		build_menu_objects(player,false)
-		
-		local trader = player_mem.opened_trader
-		
-		if trader.n_period < #periods then
-			trader.n_period = trader.n_period + 1
-			trader.period = periods[trader.n_period]
-		end
-		
-		update_menu_trader(player,player_mem,false)
-		
-	elseif event_name == "but_blkmkt_trader_evaluate" then
-		build_menu_objects(player,false)
-		
-		evaluate_trader(player_mem.opened_trader)
-		update_menu_trader(player,player_mem,false)
-		
-	elseif event_name == "but_blkmkt_trader_reset" then
-		build_menu_objects(player,false)
-		
-		local trader = player_mem.opened_trader
-		
-		trader.hour = trader.hour_period
-		trader.money_reset = trader.money_tot
-		trader.taxes_reset = trader.taxes_tot
-		trader.money = 0
-		trader.taxes = 0
-		trader.money_average = 0
-		
-		compute_trader_data(trader,false)
-		-- update_menu_trader(player,player_mem,false)
-
-	elseif event_name == "but_blkmkt_trader_new" then -- new order
-		build_menu_objects(player,false)
-		
-		local trader = player_mem.opened_trader
-		
-		if trader.type == trader_type.item then
-			if #trader.orders < 99 then
-				table.insert(trader.orders,1,{name="ucoin", count=0, price=storage.prices.ucoin.current, quality=1})
-				update_menu_trader(player,player_mem,true)
-			end
-		end
-	
-	elseif event_name == "but_blkmkt_trader_wipe" then -- wipe orders
-		build_menu_objects(player,false)
-		
-		local trader = player_mem.opened_trader
-		
-		if trader.type == trader_type.item then
-			trader.orders = {}
-			compute_trader_data(trader,true)
-			-- update_menu_trader(player,player_mem,true)
-		end
-	
-	elseif prefix == "but_blkmkt_ord_" then -- del item in orders list
-		build_menu_objects(player,false)
-		
-		local trader = player_mem.opened_trader
-		-- debug_print(nix, " ", suffix)
-		
-		if trader.type == trader_type.item then
-			table.remove(trader.orders,nix)
-			compute_trader_data(trader,true)
-			-- update_menu_trader(player,player_mem,true)
-		end
-
-	elseif prefix == "but_blkmkt_ori_" then -- change order's item
-		-- debug_print(nix, " ", suffix)
-		
-		local trader = player_mem.opened_trader
-		
-		if trader.type ~= trader_type.energy then
-			player_mem.order_sel_n = nix
-			player_mem.ask_sel = trader_type[trader.type]
-			if player_mem.ask_sel == "fluid" then
-				player_mem.group_sel_name = "fluids"
-			end
-			build_menu_objects(player,true,player_mem.ask_sel)
-		end
-	end
-end
-
-script.on_event(defines.events.on_gui_click, on_gui_click)
-script.on_event(defines.events.on_gui_checked_state_changed, on_gui_click)
-
---------------------------------------------------------------------------------------
-local function on_gui_selection_state_changed(event)
-	local player = game.players[event.player_index]
-	-- local force = player.force
-	local player_mem = storage.player_mem[player.index]
-	local event_name = event.element.name
-	local prefix = string.sub(event_name,1,15)
-	local nix = tonumber(string.sub(event_name,16,19))
-	-- local suffix = string.sub(event_name,20)
-
-	local trader = player_mem.opened_trader
-
-	if prefix == "dpn_blkmkt_qlt_" then
-
-		if trader and nix ~= nil then
-
-			
-			local order = trader.orders[nix]
-				
-			if order then
-				order.quality = quality_list[event.element.selected_index].level + 1
-			end
-				
-			compute_trader_data(trader,true)
-			-- update_menu_trader(player,player_mem,true)
-		end
-	end
-end
-
-script.on_event(defines.events.on_gui_selection_state_changed, on_gui_selection_state_changed)
+script.on_event(defines.events.on_gui_elem_changed, on_click)
+script.on_event(defines.events.on_gui_click, on_click)
 
 --------------------------------------------------------------------------------------
 local function on_gui_text_changed(event)
-	local player = game.players[event.player_index]
-	local event_name = event.element.name
-	local prefix = string.sub(event_name,1,15)
-	local nix = tonumber(string.sub(event_name,16,19))
-	local suffix = string.sub(event_name,20)
-
-	-- debug_print( "on_gui_text_changed ", player.name, " ", event_name )
-	
-	if prefix == "but_blkmkt_orc_" then -- change order count
-		local player_mem = storage.player_mem[player.index]
-		local trader = player_mem.opened_trader
-		
-		-- debug_print(nix, " ", suffix, " ", trader.orders[nix].count)
-		
-		local count = tonumber(event.element.text)
-		if count ~= nil then
-			trader.orders[nix].count = count
-			compute_trader_data(trader,false)
-			-- update_menu_trader(player,player_mem,false)
-		end
-	end
+    local player = game.players[event.player_index]
+    local elementSplit = str_split(event.element.name, '-')
+    local btn = elementSplit[1]
+    local order_id = tonumber(elementSplit[2])
+    if market_opened == nil then
+        return
+    end
+    if btn == "txt_mbm_qnt" then
+        local count = tonumber(event.element.text)
+        if count ~= nil then
+            market_opened.orders[order_id].quantity = count
+            gui_update_prices(market_opened)
+        end
+    end
+    if btn == "txt_mbm_const_value" then
+        local count = tonumber(event.element.text)
+        if count ~= nil then
+            market_opened.signal_constant_number = count
+        end
+    end
 end
-
-script.on_event(defines.events.on_gui_text_changed,on_gui_text_changed)
+script.on_event(defines.events.on_gui_text_changed, on_gui_text_changed)
 
 --------------------------------------------------------------------------------------
-local interface = {}
+local function on_gui_dropdown_changed(event)
+    local player = game.players[event.player_index]
+    local elementSplit = str_split(event.element.name, '-')
+    local btn = elementSplit[1]
+    local order_id = tonumber(elementSplit[2])
+    if market_opened == nil then
+        return
+    end
+    if btn == "drp_mbm_qlt" then
+        local quality = tonumber(event.element.selected_index)
+        if quality ~= nil then
+            if quality <= 0 then
+                quality = 1
+            end
+            market_opened.orders[order_id].quality = quality
+            gui_update_prices(market_opened)
+        end
+    end
+    if btn == 'drp_mbm_cond_signal_activate' then
+        market_opened.signal_condition = event.element.selected_index
+    end
+end
+script.on_event(defines.events.on_gui_selection_state_changed, on_gui_dropdown_changed)
 
-function interface.reset()
-	debug_print( "reset" )
-	
-	for _,force in pairs(game.forces) do
-		force.reset_recipes()
-		force.reset_technologies()
-		local force_mem = storage.force_mem[force.name]
-		force_mem.pause = false 
-		force_mem.credits = 0
-		force_mem.sales = 0
-		force_mem.sales_taxes = 0
-		force_mem.purchases = 0
-		force_mem.purchases_taxes = 0
-		force_mem.tax_rate = 0
-		force_mem.transactions = {} 
-		
-		compute_force_data(force_mem)
-		
-		for _, trader in pairs(force_mem.traders_sell) do
-			init_trader(trader,nil)
-			compute_trader_data(trader)
-		end
-		
-		for _, trader in pairs(force_mem.traders_buy) do
-			init_trader(trader,nil)
-			compute_trader_data(trader)
-		end
-	end
+--------------------------------------------------------------------------------------
+local function on_entity_settings_pasted(event)
+    local source = storage.market_list[event.source.unit_number] or nil
+    local target = storage.market_list[event.destination.unit_number] or nil
+    if source == nil or target == nil then
+        return
+    end
 
-	for _, player in pairs(game.players) do
-		if mod_gui.get_button_flow(player).flw_blkmkt then player.gui.top.flw_blkmkt.destroy() end
-		init_player(player)
-		local player_mem = storage.player_mem[player.index]
-		update_menu_gen(player,player_mem)
-		update_menu_trader(player,player_mem,false)
-	end
+    target.signal_cbx_auto_trade = source.signal_cbx_auto_trade
+    target.signal_cbx_auto_circuit = source.signal_cbx_auto_circuit
+    target.signal_condition = source.signal_condition
+    target.signal_cbx_constant = source.signal_cbx_constant
+    target.signal_automatic_a = source.signal_automatic_a
+    target.signal_automatic_b = source.signal_automatic_b
+    target.signal_constant_number = source.signal_constant_number
+    target.orders = source.orders
+end
+script.on_event(defines.events.on_entity_settings_pasted, on_entity_settings_pasted)
+
+-------------------------------------------------------------------------------------
+local function calculate_condition(el1, el2, condition)
+
+    if el1 == nil or el2 == nil or condition == nil then
+        return
+    end
+    condition = condition_type[condition]
+    if condition == '<' then
+        if el1 < el2 then
+            return true
+        end
+    elseif condition == '>' then
+        if el1 > el2 then
+            return true
+        end
+    elseif condition == '=' then
+        if el1 == el2 then
+            return true
+        end
+    elseif condition == '<=' then
+        if el1 <= el2 then
+            return true
+        end
+    elseif condition == '>=' then
+        if el1 >= el2 then
+            return true
+        end
+    elseif condition == '~=' then
+        if el1 ~= el2 then
+            return true
+        end
+    end
+    return false
+end
+local function calculate_signal_value(signal, market)
+
+    local afc = market.signal_cbx_auto_circuit or false
+    if afc then
+        local signals = market.entity.get_signals(defines.wire_connector_id.circuit_red, defines.wire_connector_id.circuit_green)
+        if signals then
+            for _, item in pairs(signals) do
+                if item.signal.name == signal then
+                    return item.count
+                end
+            end
+        else
+            return nil
+        end
+    elseif afc == false then
+        if market.type == market_type.item then
+            local count = 0
+            local inv = market.entity.get_inventory(defines.inventory.chest)
+            for i, item in pairs(inv.get_contents()) do
+                if signal == item.name then
+                    count = count + item.count
+                end
+
+            end
+            return count
+        end
+        if market.type == market_type.fluid then
+            local count = 0
+            for name, amount in pairs(market.entity.get_fluid_contents()) do
+                count = count + amount
+            end
+
+            return count
+        end
+        if market.type == market_type.energy then
+            return market.entity.energy
+        end
+    end
 end
 
-function interface.prices()
-	debug_print( "prices" )
-	
-	update_techs_costs()
-	update_objects_prices_start()
-	-- update_groups()
+local function on_tick(event)
+
+    if storage.tick >= (time_stg_ticks * 60) then
+        if storage.market_list then
+            for _, market in pairs(storage.market_list) do
+                market.signal_cbx_auto_trade = market.signal_cbx_auto_trade or false
+
+                if market.signal_cbx_auto_trade then
+                    market.signal_cbx_auto_circuit = market.signal_cbx_auto_circuit or false
+                    local signal_a = nil
+                    if market.signal_automatic_a then
+                        signal_a = market.signal_automatic_a.name or nil
+                        signal_a = calculate_signal_value(signal_a, market)
+                        if signal_a == nil then
+                            signal_a = 0
+                        end
+                    end
+                    if market.type == market_type.energy then
+                        local energy = calculate_signal_value(energy_name, market) or nil
+                        if energy then
+                            signal_a = energy / 1000000
+                        end
+                    end
+                    if market.type == market_type.fluid and market.signal_cbx_auto_circuit == false then
+                        signal_a = calculate_signal_value('no-fluid', market) or nil
+                    end
+                    local signal_b = nil
+                    if market.signal_automatic_b then
+                        signal_b = market.signal_automatic_b.name or nil
+                        signal_b = calculate_signal_value(signal_b, market)
+                        if signal_b == nil then
+                            signal_b = 0
+                        end
+                    end
+                    local constant_b = 0
+                    if market.signal_constant_number then
+                        constant_b = market.signal_constant_number or nil
+                        if constant_b == nil then
+                            constant_b = 0
+                        end
+                    end
+                    local constant_enable = true
+                    if market.signal_cbx_constant then
+                        constant_enable = market.signal_cbx_constant
+                    end
+
+                    local sel_cond = 1
+                    if market.signal_condition then
+                        sel_cond = market.signal_condition
+                    end
+                    local can_buy = false
+                    if constant_enable then
+                        can_buy = calculate_condition(signal_a, constant_b, sel_cond)
+                    elseif constant_enable == false then
+                        can_buy = calculate_condition(signal_a, signal_b, sel_cond)
+                    end
+                    if can_buy then
+                        if market.is_seller then
+                            gui_sell_all(market)
+                        else
+                            gui_buy(market)
+                        end
+
+                    end
+
+                end
+            end
+        end
+        storage.tick = 0
+    elseif storage.tick % 3 == 1 then
+        if market_opened then
+            local signals_enable = nil
+            if market_opened.type == market_type.item then
+                signals_enable = market_opened.main_chest.get_circuit_network(defines.wire_connector_id.circuit_red) or market_opened.main_chest.get_circuit_network(defines.wire_connector_id.circuit_green)
+            else
+                signals_enable = market_opened.entity.get_circuit_network(defines.wire_connector_id.circuit_red) or market_opened.entity.get_circuit_network(defines.wire_connector_id.circuit_green)
+            end
+            if market_opened.signal_cbx_auto_trade == true then
+                if signals_enable ~= nil then
+                    market_opened.signal_gui_radio_circuit.enabled = true
+                else
+                    market_opened.signal_gui_radio_circuit.enabled = false
+                    market_opened.signal_cbx_auto_circuit = false
+                    market_opened.signal_gui_radio_self.state = true
+                    market_opened.signal_gui_radio_circuit.state = false
+                    market_opened.signal_cbx_constant = false
+                end
+
+            end
+            if market_opened.type == market_type.item then
+                local signals = nil
+                signals = market_opened.main_chest.get_signals(defines.wire_connector_id.circuit_red, defines.wire_connector_id.circuit_green)
+                if signals then
+                    for i = 1, #signals do
+                        if market_opened.signal_automatic_a then
+                            if market_opened.signal_automatic_a.name == signals[i].signal.name then
+                                if market_opened.signal_cbx_auto_circuit then
+                                    market_opened.signal_gui_signal_a_lbl.caption = signals[i].count
+                                    --market_opened.signal_gui_signal_active_a.number = signals[i].count
+                                    --TODO ADD number to spriteButton > NEED SPRITE MENU TO SELECT SIGNAL :|
+                                else
+                                    market_opened.signal_gui_signal_a_lbl.caption = calculate_signal_value(market_opened.signal_automatic_a.name, market_opened)
+                                end
+                            end
+                        end
+                        if market_opened.signal_automatic_b and market_opened.signal_cbx_constant == true then
+                            if market_opened.signal_automatic_b.name == signals[i].signal.name then
+                                market_opened.signal_gui_signal_b_lbl.caption = signals[i].count
+                            end
+                        elseif market_opened.signal_cbx_constant == false then
+                            market_opened.signal_gui_signal_b_lbl.caption = ''
+                        end
+                    end
+
+                end
+            end
+        end
+
+    elseif storage.tick % 5 == 1 then
+
+        if market_opened == nil then
+            for _, player in pairs(game.players) do
+                if player.gui.screen['zra_elem_menu'] then
+                    player.opened = nil
+                end
+                if player.gui.relative['zra_market_menu'] then
+                    player.opened = nil
+                end
+                init_gui_money_counter(player)
+            end
+        end
+    end
+    storage.tick = storage.tick + 1
+    if recalculate_price then
+        recalculate_price = false
+        update_techs_costs()
+        update_objects_prices()
+    end
 end
+script.on_event(defines.events.on_tick, on_tick)
 
-function interface.credits(n)
-	debug_print( "credits" )
-	
-	for _,force in pairs(game.forces) do
-		local force_mem = storage.force_mem[force.name]
-		force_mem.credits = n
-	end
-	
-	for _, player in pairs(game.players) do
-		update_bar(player)
-	end
+-------------------------------------------------------------------------------------
+local function configure_settings_local()
+    fill_quality_type()
+    tax_pay = stg_tax_rate / 100
+    if stg_tax_enable == false then
+        tax_pay = 0
+    end
+    configure_settings()
+    update_objects_prices_start()
+    update_objects_prices()
+    update_groups()
 end
+script.on_event(defines.events.on_runtime_mod_setting_changed, configure_settings_local)
 
-function interface.get_credits(force_name)
-	
-	local force_mem = storage.force_mem[force_name]
-	return force_mem.credits
+-------------------------------------------------------------------------------------
+local function set_local_p(event)
+    local_p = game.players[event.player_index]
 end
+script.on_event(defines.events.on_player_changed_position, set_local_p)
 
-remote.add_interface( "market", interface )
+--------------------------------------------------------------------------------------
+local function initModSetting()
+    storage.market_list = storage.market_list or {}
+    storage.market_money = storage.market_money or 0
+    storage.market_money_gui = storage.market_money_gui or { }
+    init_storages()
+    update_techs_costs()
+    update_objects_prices()
+    --
 
--- /c remote.call( "market", "reset" )
--- /c remote.call( "market", "prices" )
--- /c remote.call( "market", "credits", 1000000 )
+end
+script.on_init(initModSetting)
+-------------------------------------------------------------------------------------

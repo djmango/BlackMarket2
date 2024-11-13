@@ -1,6 +1,4 @@
-# Black Market 2
-
-**BlackMarket 2** is a mod for [Factorio](https://factorio.com/) economics.
+# Mega Black Market 2
 
 ## Description
 Sell and buy items/fluids/energy on the universal black market using trading chests/tanks/accumulators, choosing the frequency of exchanges and related fees. You can now sell your overproduction and buy things that you don't want to craft by yourself. You can also use these trading units as a paying shipment system.

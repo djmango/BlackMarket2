@@ -20,14 +20,14 @@ data:extend(
 		{
 			type = "sprite",
 			name = "sprite_main_blkmkt",
-			filename = "__BlackMarket2__/graphics/but-main.png",
+			filename = "__MegaBlackMarket__/graphics/but-main.png",
 			width = 30,
 			height = 30,
 		},
 		{
 			type = "sprite",
 			name = "sprite_energy_blkmkt",
-			filename = "__BlackMarket2__/graphics/energy.png",
+			filename = "__MegaBlackMarket__/graphics/energy.png",
 			width = 32,
 			height = 32,
 		},
@@ -36,6 +36,41 @@ data:extend(
 
 --------------------------------------------------------------------------------------
 local default_gui = data.raw["gui-style"].default
+
+default_gui.ugg_content_frame = {
+    type = "frame_style",
+    parent = "inside_shallow_frame_with_padding",
+    vertically_stretchable = "on"
+}
+
+default_gui.ugg_controls_flow= {
+    type = "horizontal_flow_style",
+    vertical_align = "center",
+    horizontal_spacing = 16
+}
+default_gui.ugg_controls_flows= {
+    type = "vertical_flow_style",
+    vertical_align = "center",
+    horizontal_spacing = 16
+}
+default_gui.ugg_controls_textfield = {
+    type = "textbox_style",
+    width = 36
+}
+
+default_gui.ugg_deep_frame = {
+    type = "frame_style",
+    parent = "slot_button_deep_frame",
+    vertically_stretchable = "on",
+    horizontally_stretchable = "on",
+    top_margin = 16,
+    left_margin = 8,
+    right_margin = 8,
+    bottom_margin = 4
+}-- These are some style prototypes that the tutorial uses
+-- You don't need to understand how these work to follow along
+
+
 
 default_gui.frame_blkmkt_style = 
 {
@@ -163,27 +198,6 @@ default_gui.button_blkmkt_style =
 {
 	type="button_style",
 	parent="button",
-	font="font_bold_blkmkt",
-	align = "center",
-	default_font_color={r=1, g=1, b=1},
-	hovered_font_color={r=1, g=1, b=1},
-	top_padding = 0,
-	right_padding = 0,
-	bottom_padding = 0,
-	left_padding = 0,
-	left_click_sound =
-	{
-		{
-		  filename = "__core__/sound/gui-click.ogg",
-		  volume = 1
-		}
-	},
-}
-
-default_gui.dropdown_blkmkt_style = 
-{
-	type="dropdown_style",
-	parent="dropdown",
 	font="font_bold_blkmkt",
 	align = "center",
 	default_font_color={r=1, g=1, b=1},

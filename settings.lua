@@ -1,49 +1,116 @@
 data:extend({
-    -- High-level settings
     {
-        type = "bool-setting",
-        name = "BM2-dynamic_prices",
+
+        type = "int-setting",
+        name = "mbm-qlt-1-stg",
         setting_type = "runtime-global",
-        default_value = true,
-        order = "aaa"
-    },
-    {
-        type = "bool-setting",
-        name = "BM2-only_items_researched",
-        setting_type = "runtime-global",
-        default_value = false,
-        order = "aab"
-    },
-    {
-        type = "bool-setting",
-        name = "BM2-enable_tax",
-        setting_type = "runtime-global",
-        default_value = true,
-        order = "aac"
-    },
-    {
-        type = "bool-setting",
-        name = "BM2-default_auto",
-        setting_type = "runtime-global",
-        default_value = false,
-        order = "aad"
-    },
-    {
-        type = "double-setting",
-        name = "BM2-price_multiplyer",
-        setting_type = "runtime-global",
-        minimum_value = 0,
+        minimum_value = 1,
+        maximal_value = 100,
         default_value = 1,
-        order = "aae"
+        order = "aa"
+    },
+    {
+        type = "int-setting",
+        name = "mbm-qlt-2-stg",
+        setting_type = "runtime-global",
+        minimum_value = 1,
+        maximal_value = 100,
+        default_value = 2,
+        order = "aa"
+    },
+    {
+        type = "int-setting",
+        name = "mbm-qlt-3-stg",
+        setting_type = "runtime-global",
+        minimum_value = 1,
+        maximal_value = 100,
+        default_value = 4,
+        order = "aa"
+    },
+    {
+        type = "int-setting",
+        name = "mbm-qlt-4-stg",
+        setting_type = "runtime-global",
+        minimum_value = 1,
+        maximal_value = 100,
+        default_value = 7,
+        order = "aa"
+    },
+    {
+        type = "int-setting",
+        name = "mbm-qlt-5-stg",
+        setting_type = "runtime-global",
+        minimum_value = 1,
+        maximal_value = 100,
+        default_value = 10,
+        order = "aa"
+    },
+    {
+        type = "int-setting",
+        name = "mbm-qlt-unk-div-stg",
+        setting_type = "runtime-global",
+        minimum_value = 1,
+        maximal_value = 20,
+        default_value = 2,
+        order = "aa"
+    },
+    {
+        type = "int-setting",
+        name = "mbm-qlt-unk-mul-stg",
+        setting_type = "runtime-global",
+        minimum_value = 1,
+        maximal_value = 20,
+        default_value = 3,
+        order = "aa"
     },
     -- Basic prices
+    {
+        type = "bool-setting",
+        name = "mbm-tax-enable-stg",
+        setting_type = "runtime-global",
+        default_value = true,
+        order = "aa"
+    },
+    {
+        type = "int-setting",
+        name = "mbm-tax-rate-stg",
+        setting_type = "runtime-global",
+        minimum_value = 0,
+        maximal_value = 99,
+        default_value = 21,
+        order = "ab"
+    },
+    {
+        type = "bool-setting",
+        name = "mbm-unknown-tech-stg",
+        setting_type = "runtime-global",
+        default_value = true,
+        order = "aa"
+    },
+    {
+        type = "int-setting",
+        name = "mbm-time-ck-stg",
+        setting_type = "runtime-global",
+        minimum_value = 30,
+        maximal_value = 360,
+        default_value = 30,
+        order = "ab"
+    },
+    {
+        type = "string-setting",
+        name = "mbm-unkn-items-stg",
+        setting_type = "runtime-global",
+        allow_blank = true,
+        default_value = "",
+        order = "ab"
+    },
     {
         type = "int-setting",
         name = "BM2-resource_price",
         setting_type = "runtime-global",
         minimum_value = 0,
         default_value = 30,
-        order = "ab"
+        order = "ac"
     },
     {
         type = "int-setting",
@@ -51,7 +118,7 @@ data:extend({
         setting_type = "runtime-global",
         minimum_value = 0,
         default_value = 0,
-        order = "ac"
+        order = "ad"
     },
     {
         type = "int-setting",
@@ -59,7 +126,7 @@ data:extend({
         setting_type = "runtime-global",
         minimum_value = 0,
         default_value = 0,
-        order = "ad"
+        order = "ae"
     },
     {
         type = "int-setting",
@@ -67,7 +134,7 @@ data:extend({
         setting_type = "runtime-global",
         minimum_value = 0,
         default_value = 20,
-        order = "ae"
+        order = "af"
     },
 
     -- Vanilla resources
@@ -127,7 +194,7 @@ data:extend({
         default_value = 100,
         order = "bf"
     },
-    
+
     -- special manually declared prices
     {
         type = "int-setting",
@@ -161,9 +228,9 @@ data:extend({
         default_value = 100,
         order = "cd"
     },
-    
+
     -- other prices
-    
+
     {
         type = "int-setting",
         name = "BM2-energy_price",
@@ -196,89 +263,6 @@ data:extend({
         default_value = 0.001,
         order = "ed"
     },
-    {
-        type = "double-setting",
-        name = "BM2-commercial_margin",
-        setting_type = "runtime-global",
-        minimum_value = 0,
-        default_value = 0.10,
-        order = "ee"
-    },
-    -- dynamic price stuff
-    {
-        type = "double-setting",
-        name = "BM2-dynamic_regrowth",
-        setting_type = "runtime-global",
-        minimum_value = 0,
-        default_value = 0.05,
-        order = "ef"
-    },
-    {
-        type = "double-setting",
-        name = "BM2-dynamic_influence_item",
-        setting_type = "runtime-global",
-        minimum_value = 0,
-        default_value = 0.00008,
-        order = "eg"
-    },
-    {
-        type = "double-setting",
-        name = "BM2-dynamic_influence_fluid",
-        setting_type = "runtime-global",
-        minimum_value = 0,
-        default_value = 0.00006,
-        order = "eh"
-    },
-    {
-        type = "double-setting",
-        name = "BM2-dynamic_influence_energy",
-        setting_type = "runtime-global",
-        minimum_value = 0,
-        default_value = 0.0004,
-        order = "ei"
-    },
-    {
-        type = "double-setting",
-        name = "BM2-dynamic_minimal",
-        setting_type = "runtime-global",
-        minimum_value = 0,
-        default_value = 0.01,
-        order = "ej"
-    },
-    {
-        type = "double-setting",
-        name = "BM2-dynamic_maximal",
-        setting_type = "runtime-global",
-        minimum_value = 0,
-        default_value = 2,
-        order = "ek"
-    },
-    
-    -- Tax setting
-    {
-        type = "int-setting",
-        name = "BM2-tax_start",
-        setting_type = "runtime-global",
-        minimum_value = 0,
-        default_value = 4,
-        order = "fa"
-    },
-    {
-        type = "double-setting",
-        name = "BM2-tax_growth",
-        setting_type = "runtime-global",
-        minimum_value = 0,
-        default_value = 0.5,
-        order = "fb"
-    },
-    {
-        type = "int-setting",
-        name = "BM2-tax_immediate",
-        setting_type = "runtime-global",
-        minimum_value = 0,
-        default_value = 25,
-        order = "fc"
-    },
     -- other
     {
         type = "int-setting",
@@ -287,12 +271,5 @@ data:extend({
         minimum_value = 1,
         default_value = 10,
         order = "ga"
-    },
-    {
-        type = "bool-setting",
-        name = "BM2-unknown_price_reason_logging",
-        setting_type = "runtime-global",
-        default_value = false,
-        order = "gb"
     }
 })

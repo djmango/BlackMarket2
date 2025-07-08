@@ -968,6 +968,10 @@ local function update_objects_prices()
 	--  this links items (products) to their recipe(s)
 	for _, recipe in pairs(game.forces.player.recipes) do
 		for _, product in pairs(recipe.products) do
+			-- Skip products without a valid name
+			if product.name == nil then
+				goto continue
+			end
 
 			if game.forces.player.recipes[product.name] ~= nil then -- if we can find a direct recipe match for the item then we don't need to do fancy match
 				item_recipe = {name = product.name, recipe = product.name}
@@ -1002,6 +1006,7 @@ local function update_objects_prices()
 			end
 			
 			storage.item_recipes[product.name] = item_recipe
+			::continue::
 		end
 	end
 
@@ -1039,7 +1044,7 @@ local function update_objects_prices()
 	if only_items_researched then
 		for name, object in pairs(storage.prices) do
 			recipe = storage.item_recipes[name] or nil
-			if recipe ~= nil and game.forces.player.recipes[recipe.recipe].enabled == false then
+			if recipe ~= nil and recipe.recipe ~= nil and game.forces.player.recipes[recipe.recipe].enabled == false then
 				storage.prices[name] = nil end
 		end
 	end
@@ -1602,6 +1607,7 @@ local function buy_trader(trader,force_mem,tax_rate)
 				if purchased > 0 and money1+tax1 <= force_mem.credits then
 					money = money + money1 
 					taxes = taxes + tax1
+					force_mem.credits = force_mem.credits - money1 - tax1
 					tank.insert_fluid({name=name,amount=purchased})
 					
 					update_transaction(force_mem,"fluid",name,price,purchased)
@@ -2275,7 +2281,7 @@ local function on_tick(event)
 				local player_mem = storage.player_mem[player.index]
 				local opened = player.opened
 				
-				if opened and player.opened_gui_type ~= 5 then
+				if opened then
 					if opened ~= player_mem.opened then
 						if player_mem.opened_trader then
 							player_mem.opened_trader.editer = nil

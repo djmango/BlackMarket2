@@ -352,6 +352,7 @@ local function add_tanks(level)
 	--------------------------------------------------------------------------------------
 	local tank_sell = dupli_proto( "storage-tank", "storage-tank", name_sell )
 	tank_sell.pictures.picture.sheets[1].filename = "__BlackMarket2__/graphics/trading-tank-sell.png"
+	tank_sell.pictures.picture.sheets[1].height = 216
 	tank_sell.fluid_box.volume = tank_max
 
 	data:extend(
@@ -386,6 +387,7 @@ local function add_tanks(level)
 	--------------------------------------------------------------------------------------
 	local tank_buy = dupli_proto( "storage-tank", "storage-tank", name_buy )
 	tank_buy.pictures.picture.sheets[1].filename = "__BlackMarket2__/graphics/trading-tank-buy.png"
+	tank_buy.pictures.picture.sheets[1].height = 216
 	tank_buy.fluid_box.volume = tank_max
 
 	data:extend(

@@ -25,6 +25,10 @@ function configure_settings()
 		["raw-fish"] = settings.global["BM2-raw_fish"].value,
 
 		["steam"] = settings.global["BM2-steam"].value,
+		
+		-- Bob's mods commonly missing items
+		["sulfur"] = 150,  -- Reasonable price for sulfur based on typical recipe complexity
+		["sodium-hydroxide"] = 120,  -- Reasonable price for sodium hydroxide
 	}
 
 	unknown_price_reason_logging = settings.global["BM2-unknown_price_reason_logging"]

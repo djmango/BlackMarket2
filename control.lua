@@ -1060,12 +1060,17 @@ local function update_objects_prices()
 						break
 					end
 				end
-				if not recipe_enabled then
+				-- Don't remove special items or vanilla resources even if not researched
+				local is_special = storage.specials[name] or storage.orig_resources[name]
+				if not recipe_enabled and not is_special then
 					storage.prices[name] = nil
 				end
 			end
 		end
 	end
+
+	-- Handle missing Bob's mods items
+	handle_bobs_mods_items()
 
 	return true
 end
@@ -1073,6 +1078,31 @@ end
 local function multiply_prices()
 	if not (settings.global["BM2-price_multiplyer"] == nil or settings.global["BM2-price_multiplyer"].value == 1) then -- no point of multiplying prices if its just by 1 or not configured at all
 		table.for_each(storage.prices, function(price) price.current = price.current * settings.global["BM2-price_multiplyer"].value end)
+	end
+end
+
+--------------------------------------------------------------------------------------
+-- Handle common Bob's mods items that might not have proper recipes
+local function handle_bobs_mods_items()
+	-- List of common Bob's mods items that players often need
+	local bobs_items = {
+		["sulfur"] = 150,
+		["sodium-hydroxide"] = 120,
+		["lead-oxide"] = 100,
+		["alumina"] = 110,
+		["calcium-chloride"] = 90,
+		["ferric-chloride-solution"] = 140,
+		["liquid-fuel"] = 160,
+		["synthetic-wood"] = 80,
+	}
+	
+	-- Add any missing Bob's mods items to the prices table
+	for item_name, price in pairs(bobs_items) do
+		-- Only add if the item exists in the game and doesn't have a price yet
+		if prototypes.item[item_name] and not storage.prices[item_name] then
+			storage.prices[item_name] = {overall = price, tech = 0, ingrs = 0, energy = 0}
+			debug_print("Added Bob's mods item: " .. item_name .. " with price: " .. price)
+		end
 	end
 end
 

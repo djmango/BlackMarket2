@@ -1,5 +1,8 @@
 # Black Market 2
 
+[![Validate](https://github.com/djmango/BlackMarket2/actions/workflows/validate.yml/badge.svg)](https://github.com/djmango/BlackMarket2/actions/workflows/validate.yml)
+[![Release](https://github.com/djmango/BlackMarket2/actions/workflows/release.yml/badge.svg)](https://github.com/djmango/BlackMarket2/actions/workflows/release.yml)
+
 **BlackMarket 2** is a mod for [Factorio](https://factorio.com/) economics.
 
 ## Description
@@ -35,6 +38,14 @@ Sell and buy items/fluids/energy on the universal black market using trading che
     * epic -> 10.5x
     * legendary -> 35x
 * TODO: Adds support to buy items with higher quality (2.0) 
+## Development
+
+This mod uses GitHub Actions for automated validation and releases. See [DEVELOPMENT.md](DEVELOPMENT.md) for:
+- Setting up the development environment
+- Running linting and validation locally
+- Understanding the automated workflows
+- Creating releases
+
 ## Contributors
 * [Contributors graph](https://github.com/djmango/BlackMarket2/graphs/contributors)
 * [@BinbinHfr](https://mods.factorio.com/user/binbinhfr), original mod creator

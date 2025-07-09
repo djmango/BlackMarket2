@@ -1,0 +1,275 @@
+name: Validate Factorio Mod
+
+on:
+  push:
+    branches: [ master, main, develop ]
+  pull_request:
+    branches: [ master, main, develop ]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Lua
+      uses: leafo/gh-actions-lua@v10
+      with:
+        luaVersion: "5.4"
+        
+    - name: Setup LuaRocks
+      uses: leafo/gh-actions-luarocks@v4
+      
+    - name: Install luacheck
+      run: luarocks install luacheck
+      
+    - name: Install jq for JSON validation
+      run: sudo apt-get update && sudo apt-get install -y jq
+      
+    - name: Validate mod structure
+      run: |
+        echo "Checking required files..."
+        
+        # Check for required files
+        if [ ! -f "info.json" ]; then
+          echo "❌ Missing info.json"
+          exit 1
+        fi
+        echo "✅ info.json exists"
+        
+        if [ ! -f "control.lua" ]; then
+          echo "❌ Missing control.lua"
+          exit 1
+        fi
+        echo "✅ control.lua exists"
+        
+        if [ ! -f "data.lua" ]; then
+          echo "❌ Missing data.lua" 
+          exit 1
+        fi
+        echo "✅ data.lua exists"
+        
+        # Check for common directories
+        if [ -d "locale" ]; then
+          echo "✅ locale directory exists"
+        fi
+        
+        if [ -d "graphics" ]; then
+          echo "✅ graphics directory exists"
+        fi
+        
+        if [ -d "prototypes" ]; then
+          echo "✅ prototypes directory exists"
+        fi
+        
+    - name: Validate info.json
+      run: |
+        echo "Validating info.json..."
+        
+        # Check if info.json is valid JSON
+        if ! jq empty info.json; then
+          echo "❌ info.json is not valid JSON"
+          exit 1
+        fi
+        echo "✅ info.json is valid JSON"
+        
+        # Check required fields
+        if ! jq -e '.name' info.json > /dev/null; then
+          echo "❌ Missing 'name' field in info.json"
+          exit 1
+        fi
+        
+        if ! jq -e '.version' info.json > /dev/null; then
+          echo "❌ Missing 'version' field in info.json"
+          exit 1
+        fi
+        
+        if ! jq -e '.factorio_version' info.json > /dev/null; then
+          echo "❌ Missing 'factorio_version' field in info.json"
+          exit 1
+        fi
+        
+        if ! jq -e '.title' info.json > /dev/null; then
+          echo "❌ Missing 'title' field in info.json"
+          exit 1
+        fi
+        
+        if ! jq -e '.author' info.json > /dev/null; then
+          echo "❌ Missing 'author' field in info.json"
+          exit 1
+        fi
+        
+        if ! jq -e '.description' info.json > /dev/null; then
+          echo "❌ Missing 'description' field in info.json"
+          exit 1
+        fi
+        
+        echo "✅ All required fields present in info.json"
+        
+        # Display mod info
+        echo "Mod Name: $(jq -r '.name' info.json)"
+        echo "Version: $(jq -r '.version' info.json)"
+        echo "Factorio Version: $(jq -r '.factorio_version' info.json)"
+        
+    - name: Create luacheck config
+      run: |
+        cat > .luacheckrc << 'EOF'
+        std = "min"
+        
+        -- Factorio globals
+        globals = {
+          "game", "script", "defines", "prototypes", "settings", "storage",
+          "commands", "log", "table_size", "serpent", "util", "mods",
+          "remote", "rcon", "rendering", "helpers", "data", "pcall",
+          "ipairs", "pairs", "next", "type", "tostring", "tonumber",
+          "string", "math", "table", "assert", "error", "getmetatable",
+          "setmetatable", "rawget", "rawset", "rawlen", "rawequal",
+          "select", "unpack"
+        }
+        
+        -- Read-only globals
+        read_globals = {
+          "mod_gui", "_G", "_ENV", "require"
+        }
+        
+        -- Ignore specific warnings
+        ignore = {
+          "211", -- Unused local variable
+          "212", -- Unused argument
+          "213", -- Unused loop variable
+          "311", -- Value assigned to a local variable is unused
+          "314", -- Value of field is overwritten before use
+          "542", -- Empty if branch
+          "611", -- Line contains only whitespace
+          "612", -- Line contains trailing whitespace
+          "614", -- Trailing whitespace in comment
+          "621", -- Inconsistent indentation
+          "631", -- Line is too long
+        }
+        
+        -- Exclude files
+        exclude_files = {
+          "migrations/*.lua"
+        }
+        
+        -- File-specific configurations
+        files["control.lua"] = {
+          globals = {
+            "storage", "script", "game", "defines", "prototypes", "settings",
+            "remote", "commands", "debug_print", "message_all", "configure_settings"
+          }
+        }
+        
+        files["data.lua"] = {
+          globals = {"data"}
+        }
+        
+        files["prototypes/*.lua"] = {
+          globals = {"data", "table"}
+        }
+        
+        files["settings.lua"] = {
+          globals = {"data"}
+        }
+        
+        files["utils.lua"] = {
+          globals = {"debug_print", "message_all", "iif", "concat_lists"}
+        }
+        
+        files["config.lua"] = {
+          globals = {"configure_settings"}
+        }
+        EOF
+        
+    - name: Run luacheck
+      run: |
+        echo "Running Lua linting..."
+        
+        # Run luacheck on all Lua files
+        if luacheck . --formatter=plain; then
+          echo "✅ Lua linting passed"
+        else
+          echo "❌ Lua linting failed"
+          exit 1
+        fi
+        
+    - name: Validate locale files
+      run: |
+        echo "Validating locale files..."
+        
+        if [ -d "locale" ]; then
+          # Check for common locale structure
+          for locale_dir in locale/*/; do
+            if [ -d "$locale_dir" ]; then
+              echo "Found locale: $(basename "$locale_dir")"
+              
+              # Check for .cfg files
+              cfg_files=$(find "$locale_dir" -name "*.cfg" | wc -l)
+              if [ "$cfg_files" -gt 0 ]; then
+                echo "✅ Found $cfg_files .cfg files in $(basename "$locale_dir")"
+              else
+                echo "⚠️ No .cfg files found in $(basename "$locale_dir")"
+              fi
+            fi
+          done
+        else
+          echo "⚠️ No locale directory found"
+        fi
+        
+    - name: Check for common issues
+      run: |
+        echo "Checking for common mod issues..."
+        
+        # Check for hardcoded paths
+        if grep -r "C:\\" . --include="*.lua" 2>/dev/null; then
+          echo "⚠️ Found Windows-style hardcoded paths"
+        fi
+        
+        # Check for debug prints that might be left in
+        debug_prints=$(grep -r "game\.print\|game\.players\[.*\]\.print" . --include="*.lua" | wc -l)
+        if [ "$debug_prints" -gt 0 ]; then
+          echo "⚠️ Found $debug_prints potential debug prints"
+          grep -r "game\.print\|game\.players\[.*\]\.print" . --include="*.lua" || true
+        fi
+        
+        # Check for trailing whitespace
+        if grep -r " $" . --include="*.lua" --include="*.json" >/dev/null 2>&1; then
+          echo "⚠️ Found trailing whitespace in files"
+        fi
+        
+        echo "✅ Common issues check completed"
+        
+    - name: Validate changelog (if exists)
+      run: |
+        if [ -f "changelog.txt" ]; then
+          echo "Validating changelog.txt..."
+          
+          # Basic changelog format validation
+          if head -n 5 changelog.txt | grep -E "^[0-9]+\.[0-9]+\.[0-9]+" >/dev/null; then
+            echo "✅ Changelog appears to have proper version format"
+          else
+            echo "⚠️ Changelog might not follow standard version format"
+          fi
+        else
+          echo "⚠️ No changelog.txt found"
+        fi
+        
+    - name: Generate validation report
+      run: |
+        echo "=== Factorio Mod Validation Report ==="
+        echo "Mod Name: $(jq -r '.name' info.json)"
+        echo "Version: $(jq -r '.version' info.json)"
+        echo "Factorio Version: $(jq -r '.factorio_version' info.json)"
+        echo "Author: $(jq -r '.author' info.json)"
+        echo ""
+        echo "Structure validation: ✅ PASSED"
+        echo "JSON validation: ✅ PASSED"
+        echo "Lua linting: ✅ PASSED"
+        echo ""
+        echo "Total Lua files: $(find . -name "*.lua" | wc -l)"
+        echo "Total locale files: $(find locale -name "*.cfg" 2>/dev/null | wc -l || echo 0)"
+        echo "Total graphics files: $(find graphics -type f 2>/dev/null | wc -l || echo 0)"
+        echo ""
+        echo "✅ All validations completed successfully!" 

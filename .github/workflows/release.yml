@@ -1,0 +1,97 @@
+name: Release Factorio Mod
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # Trigger on version tags like v1.0.0
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install jq
+      run: sudo apt-get update && sudo apt-get install -y jq zip
+      
+    - name: Validate version tag
+      run: |
+        TAG_VERSION=${GITHUB_REF#refs/tags/v}
+        INFO_VERSION=$(jq -r '.version' info.json)
+        
+        echo "Tag version: $TAG_VERSION"
+        echo "info.json version: $INFO_VERSION"
+        
+        if [ "$TAG_VERSION" != "$INFO_VERSION" ]; then
+          echo "❌ Version mismatch! Tag: $TAG_VERSION, info.json: $INFO_VERSION"
+          exit 1
+        fi
+        
+        echo "✅ Version tag matches info.json"
+        
+    - name: Create mod package
+      run: |
+        MOD_NAME=$(jq -r '.name' info.json)
+        MOD_VERSION=$(jq -r '.version' info.json)
+        PACKAGE_NAME="${MOD_NAME}_${MOD_VERSION}"
+        
+        echo "Creating package: $PACKAGE_NAME"
+        
+        # Create a temporary directory for the mod
+        mkdir -p "temp/$PACKAGE_NAME"
+        
+        # Copy all necessary files, excluding development files
+        rsync -av --exclude='.git*' \
+                  --exclude='temp' \
+                  --exclude='*.md' \
+                  --exclude='.luacheckrc' \
+                  --exclude='symlink.sh' \
+                  --exclude='.vscode' \
+                  --exclude='*.zip' \
+                  . "temp/$PACKAGE_NAME/"
+        
+        # Create the zip file
+        cd temp
+        zip -r "../${PACKAGE_NAME}.zip" "$PACKAGE_NAME"
+        cd ..
+        
+        echo "MOD_NAME=$MOD_NAME" >> $GITHUB_ENV
+        echo "MOD_VERSION=$MOD_VERSION" >> $GITHUB_ENV
+        echo "PACKAGE_NAME=$PACKAGE_NAME" >> $GITHUB_ENV
+        
+    - name: Generate release notes
+      run: |
+        echo "# ${{ env.MOD_NAME }} v${{ env.MOD_VERSION }}" > release_notes.md
+        echo "" >> release_notes.md
+        
+        if [ -f "changelog.txt" ]; then
+          echo "## Changes" >> release_notes.md
+          echo "" >> release_notes.md
+          
+          # Extract changes for this version from changelog
+          awk "/^${{ env.MOD_VERSION }}/{flag=1; next} /^[0-9]+\.[0-9]+\.[0-9]+/{flag=0} flag" changelog.txt >> release_notes.md
+        else
+          echo "No changelog available." >> release_notes.md
+        fi
+        
+        echo "" >> release_notes.md
+        echo "## Installation" >> release_notes.md
+        echo "1. Download the \`${{ env.PACKAGE_NAME }}.zip\` file" >> release_notes.md
+        echo "2. Place it in your Factorio mods directory" >> release_notes.md
+        echo "3. Restart Factorio and enable the mod" >> release_notes.md
+        
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        name: ${{ env.MOD_NAME }} v${{ env.MOD_VERSION }}
+        body_path: release_notes.md
+        files: ${{ env.PACKAGE_NAME }}.zip
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Cleanup
+      run: rm -rf temp release_notes.md 

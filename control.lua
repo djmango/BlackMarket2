@@ -2175,16 +2175,19 @@ local function on_creation( event )
 			table.insert(force_mem.traders_sell,trader)
 		else
 			if type == trader_type.item then
+				local ucoin_price = storage.prices["ucoin"] and storage.prices["ucoin"].current or 0
 				trader.orders = {
-					{name = "ucoin", count = 0, price = storage.prices["ucoin"].current, quality = 1 },
+					{name = "ucoin", count = 0, price = ucoin_price, quality = 1 },
 				}
 			elseif type == trader_type.fluid then
+				local crude_oil_price = storage.prices["crude-oil"] and storage.prices["crude-oil"].current or 0
 				trader.orders = {
-					{name = "crude-oil", count = 0, price = storage.prices["crude-oil"].current, quality = nil },
+					{name = "crude-oil", count = 0, price = crude_oil_price, quality = nil },
 				}
 			elseif type == trader_type.energy then
+				local energy_price = storage.prices[energy_name] and storage.prices[energy_name].current or 0
 				trader.orders = {
-					{name = energy_name, count = 0, price = storage.prices[energy_name].current, quality = nil },
+					{name = energy_name, count = 0, price = energy_price, quality = nil },
 				}
 			end
 			table.insert(force_mem.traders_buy,trader)
@@ -2935,7 +2938,8 @@ local function on_gui_click(event)
 		
 		if trader.type == trader_type.item then
 			if #trader.orders < 99 then
-				table.insert(trader.orders,1,{name="ucoin", count=0, price=storage.prices.ucoin.current, quality=1})
+				local ucoin_price = storage.prices.ucoin and storage.prices.ucoin.current or 0
+			table.insert(trader.orders,1,{name="ucoin", count=0, price=ucoin_price, quality=1})
 				update_menu_trader(player,player_mem,true)
 			end
 		end

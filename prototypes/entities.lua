@@ -1,6 +1,9 @@
 require("utils")
 require("config")
 
+-- GUI scale multiplier from mod settings
+local gui_scale = settings.global["BM2-gui_scale"].value
+
 data:extend(
 	{
 		----------------------------------------------------------------------------------
@@ -8,7 +11,7 @@ data:extend(
 			type = "item-group",
 			name = "black-market-group",
 			icon = "__BlackMarket2__/graphics/black-market-group.png",
-			icon_size = 64,
+			icon_size = math.floor(64 * gui_scale),
 			inventory_order = "n",
 			order = "n"
 		},
@@ -41,7 +44,7 @@ data:extend(
 			type = "item",
 			name = "ucoin",
 			icon = "__BlackMarket2__/graphics/ucoin.png",
-			icon_size = 32,
+			icon_size = math.floor(32 * gui_scale),
 			subgroup = "black-market-general",
 			order = "y",
 			stack_size = 1000000
@@ -51,7 +54,7 @@ data:extend(
 			type = "technology",
 			name = "black-market-item",
 			icon = "__BlackMarket2__/graphics/black-market-item.png",
-			icon_size = 128,
+			icon_size = math.floor(128 * gui_scale),
 			enabled = true,
 			unit = {
 				count = 75,
@@ -74,7 +77,7 @@ data:extend(
 			type = "technology",
 			name = "black-market-fluid",
 			icon = "__BlackMarket2__/graphics/black-market-fluid.png",
-			icon_size = 128,
+			icon_size = math.floor(128 * gui_scale),
 			enabled = true,
 			prerequisites = { "black-market-item", "fluid-handling" },
 			unit = {
@@ -103,7 +106,7 @@ data:extend(
 			type = "technology",
 			name = "black-market-energy",
 			icon = "__BlackMarket2__/graphics/black-market-energy.png",
-			icon_size = 128,
+			icon_size = math.floor(128 * gui_scale),
 			enabled = true,
 			prerequisites = { "black-market-item", "electric-energy-accumulators" },
 			unit = {
@@ -132,7 +135,7 @@ data:extend(
 			type = "technology",
 			name = "black-market-mk2",
 			icon = "__BlackMarket2__/graphics/black-market-mk.png",
-			icon_size = 128,
+			icon_size = math.floor(128 * gui_scale),
 			enabled = true,
 			upgrade = true,
 			prerequisites = {"steel-processing", "black-market-item", "black-market-fluid", "black-market-energy" },
@@ -155,7 +158,7 @@ data:extend(
 			type = "technology",
 			name = "black-market-mk3",
 			icon = "__BlackMarket2__/graphics/black-market-mk.png",
-			icon_size = 128,
+			icon_size = math.floor(128 * gui_scale),
 			enabled = true,
 			upgrade = true,
 			prerequisites = { "black-market-mk2" },
@@ -178,7 +181,7 @@ data:extend(
 			type = "technology",
 			name = "black-market-mk4",
 			icon = "__BlackMarket2__/graphics/black-market-mk.png",
-			icon_size = 128,
+			icon_size = math.floor(128 * gui_scale),
 			enabled = true,
 			upgrade = true,
 			prerequisites = { "black-market-mk3" },
@@ -250,7 +253,7 @@ local function add_chests(level)
 				type = "item",
 				name = name_sell,
 				icon = "__BlackMarket2__/graphics/trading-chest-sell-icon.png",
-				icon_size = 32,
+				icon_size = math.floor(32 * gui_scale),
 				subgroup = "black-market-chests",
 				order = level .. "a",
 				place_result = name_sell,
@@ -290,7 +293,7 @@ local function add_chests(level)
 				type = "item",
 				name = name_buy,
 				icon = "__BlackMarket2__/graphics/trading-chest-buy-icon.png",
-				icon_size = 32,
+				icon_size = math.floor(32 * gui_scale),
 				subgroup = "black-market-chests",
 				order = level .. "b",
 				place_result = name_buy,
@@ -363,7 +366,7 @@ local function add_tanks(level)
 				type = "item",
 				name = name_sell,
 				icon = "__BlackMarket2__/graphics/trading-tank-sell-icon.png",
-				icon_size = 32,
+				icon_size = math.floor(32 * gui_scale),
 				subgroup = "black-market-tanks",
 				order = level .. "a",
 				place_result = name_sell,
@@ -398,7 +401,7 @@ local function add_tanks(level)
 				type = "item",
 				name = name_buy,
 				icon = "__BlackMarket2__/graphics/trading-tank-buy-icon.png",
-				icon_size = 32,
+				icon_size = math.floor(32 * gui_scale),
 				subgroup = "black-market-tanks",
 				order = level .. "b",
 				place_result = name_buy,
@@ -480,7 +483,7 @@ local function add_accus(level)
 				type = "item",
 				name = name_sell,
 				icon = "__BlackMarket2__/graphics/trading-accumulator-sell-icon.png",
-				icon_size = 32,
+				icon_size = math.floor(32 * gui_scale),
 				subgroup = "black-market-accumulators",
 				order = level .. "a",
 				place_result = name_sell,
@@ -518,7 +521,7 @@ local function add_accus(level)
 				type = "item",
 				name = name_buy,
 				icon = "__BlackMarket2__/graphics/trading-accumulator-buy-icon.png",
-				icon_size = 32,
+				icon_size = math.floor(32 * gui_scale),
 				subgroup = "black-market-accumulators",
 				order = level .. "b",
 				place_result = name_buy,

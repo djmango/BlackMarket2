@@ -2191,6 +2191,12 @@ local function on_creation( event )
 		end
 		
 		compute_trader_data(trader)
+		
+		-- Check for blueprint data and apply it
+		if event.tags and event.tags.blackmarket_trader then
+			apply_blueprint_data_to_trader(trader, event.tags.blackmarket_trader)
+			compute_trader_data(trader)
+		end
 	end
 end
 
@@ -2263,6 +2269,135 @@ local function on_entity_settings_pasted(event)
 end
 
 script.on_event(defines.events.on_entity_settings_pasted,on_entity_settings_pasted)
+
+--------------------------------------------------------------------------------------
+-- Blueprint functionality for saving and loading trader orders
+--------------------------------------------------------------------------------------
+
+local function serialize_trader_for_blueprint(trader)
+	-- Create a data structure that can be saved in blueprint tags
+	local blueprint_data = {
+		auto = trader.auto,
+		daylight = trader.daylight,
+		n_period = trader.n_period,
+		period = trader.period,
+		sell_or_buy = trader.sell_or_buy,
+		type = trader.type
+	}
+	
+	-- For buy traders, save the orders list
+	if not trader.sell_or_buy and trader.orders then
+		blueprint_data.orders = {}
+		for i, order in pairs(trader.orders) do
+			table.insert(blueprint_data.orders, {
+				name = order.name,
+				count = order.count,
+				quality = order.quality
+			})
+		end
+	end
+	
+	return blueprint_data
+end
+
+local function apply_blueprint_data_to_trader(trader, blueprint_data)
+	-- Apply the blueprint data to the trader
+	if blueprint_data.auto ~= nil then
+		trader.auto = blueprint_data.auto
+	end
+	if blueprint_data.daylight ~= nil then
+		trader.daylight = blueprint_data.daylight
+	end
+	if blueprint_data.n_period ~= nil then
+		trader.n_period = blueprint_data.n_period
+	end
+	if blueprint_data.period ~= nil then
+		trader.period = blueprint_data.period
+	end
+	
+	-- For buy traders, restore the orders
+	if not trader.sell_or_buy and blueprint_data.orders then
+		trader.orders = {}
+		for i, order in pairs(blueprint_data.orders) do
+			table.insert(trader.orders, {
+				name = order.name,
+				count = order.count,
+				quality = order.quality,
+				price = storage.prices[order.name] and storage.prices[order.name].current or 0
+			})
+		end
+	end
+end
+
+local function on_player_setup_blueprint(event)
+	local player = game.players[event.player_index]
+	local blueprint = player.blueprint_to_setup
+	
+	if not blueprint or not blueprint.valid_for_read then
+		return
+	end
+	
+	local entities = blueprint.get_blueprint_entities()
+	if not entities then
+		return
+	end
+	
+	-- Go through each entity in the blueprint
+	for _, entity in pairs(entities) do
+		local prefix = string.sub(entity.name, 1, 15)
+		
+		-- Check if this is a trading entity
+		if prefix == "trader-chst-sel" or prefix == "trader-chst-buy" or 
+		   prefix == "trader-tank-sel" or prefix == "trader-tank-buy" or 
+		   prefix == "trader-accu-sel" or prefix == "trader-accu-buy" then
+			
+			-- Find the corresponding trader in the world
+			local world_entity = nil
+			local surface = player.surface
+			local area = event.area
+			
+			-- Find entities in the selected area
+			local found_entities = surface.find_entities_filtered{
+				area = area,
+				name = entity.name
+			}
+			
+			-- Match by position (approximately)
+			for _, found_entity in pairs(found_entities) do
+				if math.abs(found_entity.position.x - (area.left_top.x + entity.position.x)) < 0.5 and
+				   math.abs(found_entity.position.y - (area.left_top.y + entity.position.y)) < 0.5 then
+					world_entity = found_entity
+					break
+				end
+			end
+			
+			-- If we found the world entity, get its trader data
+			if world_entity then
+				local force_mem = storage.force_mem[world_entity.force.name]
+				local trader = nil
+				
+				if prefix == "trader-chst-sel" or prefix == "trader-tank-sel" or prefix == "trader-accu-sel" then
+					trader = find_trader_sell(force_mem, world_entity)
+				elseif prefix == "trader-chst-buy" or prefix == "trader-tank-buy" or prefix == "trader-accu-buy" then
+					trader = find_trader_buy(force_mem, world_entity)
+				end
+				
+				-- If we found the trader, serialize its data
+				if trader then
+					local blueprint_data = serialize_trader_for_blueprint(trader)
+					entity.tags = entity.tags or {}
+					entity.tags.blackmarket_trader = blueprint_data
+				end
+			end
+		end
+	end
+	
+	-- Update the blueprint with the new entity data
+	blueprint.set_blueprint_entities(entities)
+end
+
+
+script.on_event(defines.events.on_player_setup_blueprint, on_player_setup_blueprint)
 
 -------------------------------------------------------------------------------------
 local function on_tick(event)

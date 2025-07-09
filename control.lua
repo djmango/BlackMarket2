@@ -421,7 +421,8 @@ local function build_menu_trader( player, player_mem, open_or_close )
 				
 			gui2 = gui1.add({type = "flow", name = "flw_blkmkt_trader_orders", direction = "horizontal", style = "horizontal_flow_blkmkt_style"})
 			gui2 = gui2.add({type = "scroll-pane", name = "scr_blkmkt_trader_orders", vertical_scroll_policy = "auto"})
-			gui2.style.maximal_height = 150
+			local gui_scale = settings.global["BM2-gui_scale"].value
+			gui2.style.maximal_height = math.floor(150 * gui_scale)
 			player_mem.scr_blkmkt_trader_orders = gui2
 		end
 	end
@@ -593,7 +594,8 @@ local function build_menu_objects(player, open_or_close, ask_sel)
 		-- main_window = main_window.add({type = "empty-widget", ignored_by_interaction="true", name = "main_window_drag_handle", style = "flib_titlebar_drag_handle"})
 		main_window = main_window.add({type = "flow", name = "flw_blkmkt_itml", direction = "vertical", style = "vertical_flow_blkmkt_style"})
 		-- main_window.style.minimal_height = 500
-		main_window.style.minimal_width = 380
+		local gui_scale = settings.global["BM2-gui_scale"].value
+		main_window.style.minimal_width = math.floor(380 * gui_scale)
 		
 		item_table_holder = main_window.add({type = "scroll-pane", name = "scr_blkmkt_itml", vertical_scroll_policy = "auto"}) -- , style = "scroll_pane_blkmkt_style"
 		-- item_table_holder.style.maximal_height = 450
@@ -615,7 +617,7 @@ local function build_menu_objects(player, open_or_close, ask_sel)
 		end
 		
 		item_table = item_table_holder.add({type = "scroll-pane", name = "flib_naked_scroll_pane_no_padding", vertical_scroll_policy = "auto"})
-		item_table.style.maximal_height = 200
+		item_table.style.maximal_height = math.floor(200 * gui_scale)
 		item_table = item_table.add({type = "table", name = "tab_blkmkt_itml2", column_count = 10, style = "table_blkmkt_style"})
 		
 		local group = storage.groups[player_mem.group_sel_name].group

@@ -1,3 +1,6 @@
+-- GUI scale multiplier from mod settings
+local gui_scale = settings.global["BM2-gui_scale"].value
+
 data:extend(
 	{
 		--------------------------------------------------------------------------------------
@@ -6,14 +9,14 @@ data:extend(
 			name = "font_blkmkt",
 			from = "default",
 			border = false,
-			size = 15
+			size = math.floor(15 * gui_scale)
 		},
 		{
 			type = "font",
 			name = "font_bold_blkmkt",
 			from = "default-bold",
 			border = false,
-			size = 15
+			size = math.floor(15 * gui_scale)
 		},
 		
 		--------------------------------------------------------------------------------------
@@ -21,15 +24,15 @@ data:extend(
 			type = "sprite",
 			name = "sprite_main_blkmkt",
 			filename = "__BlackMarket2__/graphics/but-main.png",
-			width = 30,
-			height = 30,
+			width = math.floor(30 * gui_scale),
+			height = math.floor(30 * gui_scale),
 		},
 		{
 			type = "sprite",
 			name = "sprite_energy_blkmkt",
 			filename = "__BlackMarket2__/graphics/energy.png",
-			width = 32,
-			height = 32,
+			width = math.floor(32 * gui_scale),
+			height = math.floor(32 * gui_scale),
 		},
 	}
 )		
@@ -133,8 +136,8 @@ default_gui.textfield_blkmkt_style =
 	bottom_padding = 0,
 	left_padding = 1,
 	right_padding = 1,
-	minimal_width = 50,
-	maximal_width = 200,
+	minimal_width = math.floor(50 * gui_scale),
+	maximal_width = math.floor(200 * gui_scale),
 	graphical_set =
 	{
 		type = "composition",
@@ -213,7 +216,7 @@ default_gui.button_blkmkt_credits_style =
 	right_padding = 0,
 	bottom_padding = 0,
 	left_padding = 0,
-	height = 36,
+	height = math.floor(36 * gui_scale),
 	scalable = false,
 	left_click_sound =
 	{
@@ -233,8 +236,8 @@ default_gui.sprite_main_blkmkt_style =
 	right_padding = 0,
 	bottom_padding = 0,
 	left_padding = 0,
-	height = 36,
-	width = 36,
+	height = math.floor(36 * gui_scale),
+	width = math.floor(36 * gui_scale),
 	scalable = false,
 }
 
@@ -246,8 +249,8 @@ default_gui.sprite_group_blkmkt_style =
 	right_padding = 0,
 	bottom_padding = 0,
 	left_padding = 0,
-	width = 64,
-	height = 64,
+	width = math.floor(64 * gui_scale),
+	height = math.floor(64 * gui_scale),
 	scalable = false
 }
 
@@ -259,8 +262,8 @@ default_gui.sprite_obj_blkmkt_style =
 	right_padding = 0,
 	bottom_padding = 0,
 	left_padding = 0,
-	height = 32,
-	width = 32,
+	height = math.floor(32 * gui_scale),
+	width = math.floor(32 * gui_scale),
 	-- minimal_width = 32,
 	-- minimal_height = 32,
 	scalable = false

@@ -279,6 +279,16 @@ data:extend({
         default_value = 25,
         order = "fc"
     },
+    -- GUI settings
+    {
+        type = "double-setting",
+        name = "BM2-gui_scale",
+        setting_type = "runtime-global", 
+        minimum_value = 0.5,
+        maximum_value = 3.0,
+        default_value = 1.5,
+        order = "ga"
+    },
     -- other
     {
         type = "int-setting",
@@ -286,13 +296,13 @@ data:extend({
         setting_type = "runtime-global",
         minimum_value = 1,
         default_value = 10,
-        order = "ga"
+        order = "gb"
     },
     {
         type = "bool-setting",
         name = "BM2-unknown_price_reason_logging",
         setting_type = "runtime-global",
         default_value = false,
-        order = "gb"
+        order = "gc"
     }
 })

@@ -966,14 +966,22 @@ local function update_objects_prices()
 	-- item_recipes looks like {..., item_name = {name, recipe_name}}
 
 	--  this links items (products) to their recipe(s)
-	for _, recipe in pairs(game.forces.player.recipes) do
+	-- Build recipe database from all forces to ensure comprehensive coverage
+	local all_recipes = {}
+	for _, force in pairs(game.forces) do
+		for recipe_name, recipe in pairs(force.recipes) do
+			all_recipes[recipe_name] = recipe
+		end
+	end
+	
+	for _, recipe in pairs(all_recipes) do
 		for _, product in pairs(recipe.products) do
 			-- Skip products without a valid name
 			if product.name == nil then
 				goto continue
 			end
 
-			if game.forces.player.recipes[product.name] ~= nil then -- if we can find a direct recipe match for the item then we don't need to do fancy match
+			if all_recipes[product.name] ~= nil then -- if we can find a direct recipe match for the item then we don't need to do fancy match
 				item_recipe = {name = product.name, recipe = product.name}
 			else -- recipe matching, the filters avoid recipes that cause issues for the cost computer
 				item_recipe = storage.item_recipes[product.name] or {name = product.name, recipe = nil}
@@ -993,11 +1001,11 @@ local function update_objects_prices()
 
 					-- or recipes with catalysts
 					local hasCatalyst = false
-					table.for_each(game.forces.player.recipes[recipe.name].products, function(product)
+					table.for_each(recipe.products, function(product)
 						-- if the recipe just straight up tells us
 						if product.catalyst_amount ~= nil and product.catalyst_amount > 0 then hasCatalyst = true
 						-- otherwise check for name matches
-						else table.for_each(game.forces.player.recipes[recipe.name].ingredients, function(ingr) if ingr.name == product.name then hasCatalyst = true end end)
+						else table.for_each(recipe.ingredients, function(ingr) if ingr.name == product.name then hasCatalyst = true end end)
 						end
 					end)
 
@@ -1044,8 +1052,18 @@ local function update_objects_prices()
 	if only_items_researched then
 		for name, object in pairs(storage.prices) do
 			recipe = storage.item_recipes[name] or nil
-			if recipe ~= nil and recipe.recipe ~= nil and game.forces.player.recipes[recipe.recipe].enabled == false then
-				storage.prices[name] = nil end
+			if recipe ~= nil and recipe.recipe ~= nil then
+				local recipe_enabled = false
+				for _, force in pairs(game.forces) do
+					if force.recipes[recipe.recipe] and force.recipes[recipe.recipe].enabled then
+						recipe_enabled = true
+						break
+					end
+				end
+				if not recipe_enabled then
+					storage.prices[name] = nil
+				end
+			end
 		end
 	end
 

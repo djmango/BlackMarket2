@@ -2524,7 +2524,7 @@ local function on_player_cursor_stack_changed(event)
 
 	-- debug_print( "on_player_cursor_stack_changed ", player.name )
 
-	if player.cursor_stack and player.cursor_stack.valid_for_read then
+	if player.cursor_stack and player.cursor_stack.valid_for_read and player.cursor_stack.name then
 		player_mem.cursor_name = player.cursor_stack.name
 	else
 		player_mem.cursor_name = nil

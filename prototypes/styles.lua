@@ -1,5 +1,5 @@
 -- GUI scale multiplier from mod settings
-local gui_scale = settings.global["BM2-gui_scale"].value
+local gui_scale = settings.startup["BM2-gui_scale"].value
 
 data:extend(
 	{

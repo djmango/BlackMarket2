@@ -283,7 +283,7 @@ data:extend({
     {
         type = "double-setting",
         name = "BM2-gui_scale",
-        setting_type = "runtime-global", 
+        setting_type = "startup",
         minimum_value = 0.5,
         maximum_value = 3.0,
         default_value = 1.5,

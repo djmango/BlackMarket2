@@ -1,6 +1,3 @@
--- GUI scale multiplier from mod settings
-local gui_scale = settings.global["BM2-gui_scale"].value
-
 data:extend(
 	{
 		{
@@ -14,7 +11,7 @@ data:extend(
 			type = "virtual-signal",
 			name = "signal-market-auto-all",
 			icon = "__BlackMarket2__/graphics/signal-market-auto-all.png",
-			icon_size = math.floor(32 * gui_scale),
+			icon_size = 32,
 			subgroup = "virtual-signal-market",
 			order = "y[market]-aa"
 		},
@@ -22,7 +19,7 @@ data:extend(
 			type = "virtual-signal",
 			name = "signal-market-auto-sell",
 			icon = "__BlackMarket2__/graphics/signal-market-auto-sell.png",
-			icon_size = math.floor(32 * gui_scale),
+			icon_size = 32,
 			subgroup = "virtual-signal-market",
 			order = "y[market]-ab"
 		},
@@ -30,7 +27,7 @@ data:extend(
 			type = "virtual-signal",
 			name = "signal-market-auto-buy",
 			icon = "__BlackMarket2__/graphics/signal-market-auto-buy.png",
-			icon_size = math.floor(32 * gui_scale),
+			icon_size = 32,
 			subgroup = "virtual-signal-market",
 			order = "y[market]-ac"
 		},

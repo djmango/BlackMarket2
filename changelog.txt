@@ -1,5 +1,5 @@
 ---------------------------------------------------------------------------------------------------
-Version: 2.2.15
+Version: 2.2.16
 Date: 2025-07-13
   Changes:
     -  Added blueprint support for saving and loading trading orders
@@ -11,6 +11,7 @@ Date: 2025-07-13
     -  Added comprehensive GitHub Actions validation for mod quality assurance
     -  Improved price update logic and fixed potential nil references
     -  Fix LuaEquipmentGrid name access crash in modular armor
+    -  Fixed sprite rectangle size mismatch errors for icon definitions
     -  Enhanced mod stability and compatibility with other mods
 ---------------------------------------------------------------------------------------------------
 Version: 2.2.12

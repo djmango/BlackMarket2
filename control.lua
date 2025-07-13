@@ -712,7 +712,7 @@ local function build_menu_trader(player, player_mem, open_or_close)
 				"horizontal_flow_blkmkt_style"
 			})
 			gui2 = gui2.add({ type = "scroll-pane", name = "scr_blkmkt_trader_orders", vertical_scroll_policy = "auto" })
-			local gui_scale = settings.global["BM2-gui_scale"].value
+			local gui_scale = settings.startup["BM2-gui_scale"].value
 			gui2.style.maximal_height = math.floor(150 * gui_scale)
 			player_mem.scr_blkmkt_trader_orders = gui2
 		end
@@ -941,7 +941,7 @@ local function build_menu_objects(player, open_or_close, ask_sel)
 			"vertical_flow_blkmkt_style"
 		})
 		-- main_window.style.minimal_height = 500
-		local gui_scale = settings.global["BM2-gui_scale"].value
+		local gui_scale = settings.startup["BM2-gui_scale"].value
 		main_window.style.minimal_width = math.floor(380 * gui_scale)
 
 		item_table_holder = main_window.add({

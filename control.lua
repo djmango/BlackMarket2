@@ -210,14 +210,16 @@ local function build_menu_gen(player, player_mem, open_or_close)
 
 	if open_or_close and not storage.prices_computed then
 		local gui1, gui2
-		gui1 = gui_parent.add({
+		local frame_window = gui_parent.add({
 			type = "frame",
 			name = "frm_blkmkt_gen",
 			caption = { "blkmkt-gui-blkmkt" },
 			style =
 			"frame_blkmkt_style"
 		})
-		gui1 = gui1.add({
+		-- Bring the window to front so it appears above inventory
+		frame_window.bring_to_front()
+		gui1 = frame_window.add({
 			type = "flow",
 			name = "flw_blkmkt_gen",
 			direction = "vertical",
@@ -488,6 +490,8 @@ local function build_menu_trader(player, player_mem, open_or_close)
 		local gui1, gui2, gui3
 		gui1 = gui_parent.add({ type = "frame", name = "frm_blkmkt_trader", style = "frame_blkmkt_style" })
 		player_mem.frm_blkmkt_trader = gui1
+		-- Bring the window to front so it appears above inventory
+		gui1.bring_to_front()
 		gui1 = gui1.add({
 			type = "flow",
 			name = "flw_blkmkt_trader",
@@ -925,15 +929,17 @@ local function build_menu_objects(player, open_or_close, ask_sel)
 	if open_or_close and not storage.prices_computed then
 		local player_mem = storage.player_mem[player.index]
 		local main_window, item_table_holder, item_table
-		main_window = mod_gui.get_frame_flow(player).add({
+		local frame_window = mod_gui.get_frame_flow(player).add({
 			type = "frame",
 			name = "frm_blkmkt_itml",
 			caption = { "blkmkt-gui-objects-list" },
 			style =
 			"frame_blkmkt_style"
 		})
+		-- Bring the window to front so it appears above inventory
+		frame_window.bring_to_front()
 		-- main_window = main_window.add({type = "empty-widget", ignored_by_interaction="true", name = "main_window_drag_handle", style = "flib_titlebar_drag_handle"})
-		main_window = main_window.add({
+		main_window = frame_window.add({
 			type = "flow",
 			name = "flw_blkmkt_itml",
 			direction = "vertical",

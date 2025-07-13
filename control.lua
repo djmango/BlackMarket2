@@ -2868,8 +2868,10 @@ local function on_tick(event)
 							build_menu_objects(player, false)
 						end
 
-						local force_mem = storage.force_mem[player.force.name]
-						local prefix = string.sub(opened.name, 1, 15)
+						-- Only handle entity objects, not equipment grids or other opened objects
+						if opened.object_name == "LuaEntity" and opened.name then
+							local force_mem = storage.force_mem[player.force.name]
+							local prefix = string.sub(opened.name, 1, 15)
 						if prefix == "trader-chst-sel" or prefix == "trader-tank-sel" or prefix == "trader-accu-sel" then
 							build_menu_objects(player, false)
 							local trader = find_trader_sell(force_mem, opened)
@@ -2896,6 +2898,7 @@ local function on_tick(event)
 									player.print({ "blkmkt-gui-trader-edited", trader.editer.name })
 								end
 							end
+						end
 						end
 
 						player_mem.opened = opened

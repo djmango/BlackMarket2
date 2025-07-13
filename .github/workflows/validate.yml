@@ -2,179 +2,189 @@ name: Validate Factorio Mod
 
 on:
   push:
-    branches: [ master, main, develop ]
+    branches: [master, main, develop]
   pull_request:
-    branches: [ master, main, develop ]
+    branches: [master, main, develop]
 
 jobs:
   validate:
     runs-on: ubuntu-latest
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Setup Lua
-      uses: leafo/gh-actions-lua@v10
-      with:
-        luaVersion: "5.4"
-        
-    - name: Setup LuaRocks
-      uses: leafo/gh-actions-luarocks@v4
-      
-    - name: Install luacheck
-      run: luarocks install luacheck
-      
-    - name: Install jq for JSON validation
-      run: sudo apt-get update && sudo apt-get install -y jq
-      
-    - name: Validate mod structure
-      run: |
-        echo "Checking required files..."
-        
-        # Check for required files
-        if [ ! -f "info.json" ]; then
-          echo "❌ Missing info.json"
-          exit 1
-        fi
-        
-        if [ ! -f "control.lua" ]; then
-          echo "❌ Missing control.lua"
-          exit 1
-        fi
-        
-        if [ ! -f "data.lua" ]; then
-          echo "❌ Missing data.lua"
-          exit 1
-        fi
-        
-        echo "✅ Required files present"
-        
-    - name: Validate info.json
-      run: |
-        echo "Validating info.json..."
-        
-        # Check if info.json is valid JSON
-        if ! jq empty info.json 2>/dev/null; then
-          echo "❌ info.json is not valid JSON"
-          exit 1
-        fi
-        
-        # Check required fields
-        name=$(jq -r '.name // empty' info.json)
-        version=$(jq -r '.version // empty' info.json)
-        title=$(jq -r '.title // empty' info.json)
-        author=$(jq -r '.author // empty' info.json)
-        factorio_version=$(jq -r '.factorio_version // empty' info.json)
-        
-        if [ -z "$name" ]; then
-          echo "❌ Missing 'name' field in info.json"
-          exit 1
-        fi
-        
-        if [ -z "$version" ]; then
-          echo "❌ Missing 'version' field in info.json"
-          exit 1
-        fi
-        
-        if [ -z "$title" ]; then
-          echo "❌ Missing 'title' field in info.json"
-          exit 1
-        fi
-        
-        if [ -z "$author" ]; then
-          echo "❌ Missing 'author' field in info.json"
-          exit 1
-        fi
-        
-        if [ -z "$factorio_version" ]; then
-          echo "❌ Missing 'factorio_version' field in info.json"
-          exit 1
-        fi
-        
-        echo "✅ info.json validation passed"
-        echo "📋 Mod: $name v$version by $author"
-        echo "📋 Factorio version: $factorio_version"
-        
-    - name: Run Lua linting
-      run: |
-        echo "Running Lua linting..."
-        
-        # Remove .luarocks directory to prevent any interference
-        rm -rf .luarocks
-        
-        # Run luacheck with explicit configuration and only on mod files
-        # Use -- to separate options from file arguments
-        luacheck --config .luacheckrc --formatter=plain -- control.lua data.lua settings.lua utils.lua prototypes/
-        
-        exit_code=$?
-        
-        if [ $exit_code -ne 0 ]; then
-          echo "❌ Lua linting failed with exit code $exit_code"
-          exit 1
-        fi
-        
-        echo "✅ Lua linting passed"
-        
-    - name: Validate locale files
-      run: |
-        echo "Checking locale structure..."
-        
-        if [ -d "locale" ]; then
-          # Check if locale directories contain .cfg files
-          cfg_files=$(find locale -name "*.cfg" 2>/dev/null | wc -l)
-          if [ "$cfg_files" -eq 0 ]; then
-            echo "⚠️ No .cfg files found in locale directory"
-          else
-            echo "✅ Found $cfg_files locale file(s)"
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Lua
+        uses: leafo/gh-actions-lua@v10
+        with:
+          luaVersion: "5.4"
+
+      - name: Setup LuaRocks
+        uses: leafo/gh-actions-luarocks@v4
+
+      - name: Install luacheck
+        run: luarocks install luacheck
+
+      - name: Install jq for JSON validation
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Validate mod structure
+        run: |
+          echo "Checking required files..."
+
+          # Check for required files
+          if [ ! -f "info.json" ]; then
+            echo "❌ Missing info.json"
+            exit 1
           fi
-        else
-          echo "⚠️ No locale directory found"
-        fi
-        
-    - name: Check for common issues
-      run: |
-        echo "Checking for common issues..."
-        
-        # Check for debug prints (game.print should be avoided in release)
-        debug_prints=$(grep -r "game\.print\|game\.players\[.*\]\.print" . --include="*.lua" | wc -l)
-        if [ "$debug_prints" -gt 0 ]; then
-          echo "⚠️ Found $debug_prints potential debug prints"
-          grep -r "game\.print\|game\.players\[.*\]\.print" . --include="*.lua" || true
-        fi
-        
-        # Check for trailing whitespace
-        trailing_ws=$(find . -name "*.lua" -exec grep -l "[[:space:]]$" {} \; | wc -l)
-        if [ "$trailing_ws" -gt 0 ]; then
-          echo "⚠️ Found trailing whitespace in $trailing_ws Lua files"
-        fi
-        
-        echo "✅ Common issues check completed"
-        
-    - name: Validate changelog (if present)
-      run: |
-        if [ -f "changelog.txt" ]; then
-          echo "Validating changelog format..."
-          
-          # Check basic changelog format
-          if ! grep -q "^Version:" changelog.txt; then
-            echo "⚠️ Changelog doesn't follow standard format (missing 'Version:' entries)"
-          else
-            echo "✅ Changelog format looks good"
+
+          if [ ! -f "control.lua" ]; then
+            echo "❌ Missing control.lua"
+            exit 1
           fi
-        else
-          echo "⚠️ No changelog.txt found"
-        fi
-        
-    - name: Generate validation report
-      run: |
-        echo "🎯 Validation Summary"
-        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        echo "✅ Mod structure validation: PASSED"
-        echo "✅ info.json validation: PASSED"
-        echo "✅ Lua syntax and linting: PASSED"
-        echo "✅ Locale structure check: COMPLETED"
-        echo "✅ Common issues check: COMPLETED"
-        echo "✅ Changelog validation: COMPLETED"
-        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        echo "🚀 All validation checks completed successfully!" 
+
+          if [ ! -f "data.lua" ]; then
+            echo "❌ Missing data.lua"
+            exit 1
+          fi
+
+          echo "✅ Required files present"
+
+      - name: Validate info.json
+        run: |
+          echo "Validating info.json..."
+
+          # Check if info.json is valid JSON
+          if ! jq empty info.json 2>/dev/null; then
+            echo "❌ info.json is not valid JSON"
+            exit 1
+          fi
+
+          # Check required fields
+          name=$(jq -r '.name // empty' info.json)
+          version=$(jq -r '.version // empty' info.json)
+          title=$(jq -r '.title // empty' info.json)
+          author=$(jq -r '.author // empty' info.json)
+          factorio_version=$(jq -r '.factorio_version // empty' info.json)
+
+          if [ -z "$name" ]; then
+            echo "❌ Missing 'name' field in info.json"
+            exit 1
+          fi
+
+          if [ -z "$version" ]; then
+            echo "❌ Missing 'version' field in info.json"
+            exit 1
+          fi
+
+          if [ -z "$title" ]; then
+            echo "❌ Missing 'title' field in info.json"
+            exit 1
+          fi
+
+          if [ -z "$author" ]; then
+            echo "❌ Missing 'author' field in info.json"
+            exit 1
+          fi
+
+          if [ -z "$factorio_version" ]; then
+            echo "❌ Missing 'factorio_version' field in info.json"
+            exit 1
+          fi
+
+          echo "✅ info.json validation passed"
+          echo "📋 Mod: $name v$version by $author"
+          echo "📋 Factorio version: $factorio_version"
+
+      - name: Run Lua linting
+        run: |
+          echo "Running Lua linting..."
+
+          # Add LuaRocks bin directory to PATH
+          echo "Adding LuaRocks bin to PATH..."
+          export PATH="$HOME/.luarocks/bin:$PATH"
+
+          # Check if luacheck is available
+          if ! command -v luacheck &> /dev/null; then
+            echo "luacheck not found in PATH, trying luarocks run..."
+            LUACHECK_CMD="luarocks run luacheck"
+          else
+            echo "Found luacheck in PATH"
+            LUACHECK_CMD="luacheck"
+          fi
+
+          # Run luacheck with explicit configuration and only on mod files
+          # Use -- to separate options from file arguments
+          $LUACHECK_CMD --config .luacheckrc --formatter=plain -- control.lua data.lua settings.lua utils.lua prototypes/
+
+          exit_code=$?
+
+          if [ $exit_code -ne 0 ]; then
+            echo "❌ Lua linting failed with exit code $exit_code"
+            exit 1
+          fi
+
+          echo "✅ Lua linting passed"
+
+      - name: Validate locale files
+        run: |
+          echo "Checking locale structure..."
+
+          if [ -d "locale" ]; then
+            # Check if locale directories contain .cfg files
+            cfg_files=$(find locale -name "*.cfg" 2>/dev/null | wc -l)
+            if [ "$cfg_files" -eq 0 ]; then
+              echo "⚠️ No .cfg files found in locale directory"
+            else
+              echo "✅ Found $cfg_files locale file(s)"
+            fi
+          else
+            echo "⚠️ No locale directory found"
+          fi
+
+      - name: Check for common issues
+        run: |
+          echo "Checking for common issues..."
+
+          # Check for debug prints (game.print should be avoided in release)
+          debug_prints=$(grep -r "game\.print\|game\.players\[.*\]\.print" . --include="*.lua" | wc -l)
+          if [ "$debug_prints" -gt 0 ]; then
+            echo "⚠️ Found $debug_prints potential debug prints"
+            grep -r "game\.print\|game\.players\[.*\]\.print" . --include="*.lua" || true
+          fi
+
+          # Check for trailing whitespace
+          trailing_ws=$(find . -name "*.lua" -exec grep -l "[[:space:]]$" {} \; | wc -l)
+          if [ "$trailing_ws" -gt 0 ]; then
+            echo "⚠️ Found trailing whitespace in $trailing_ws Lua files"
+          fi
+
+          echo "✅ Common issues check completed"
+
+      - name: Validate changelog (if present)
+        run: |
+          if [ -f "changelog.txt" ]; then
+            echo "Validating changelog format..."
+            
+            # Check basic changelog format
+            if ! grep -q "^Version:" changelog.txt; then
+              echo "⚠️ Changelog doesn't follow standard format (missing 'Version:' entries)"
+            else
+              echo "✅ Changelog format looks good"
+            fi
+          else
+            echo "⚠️ No changelog.txt found"
+          fi
+
+      - name: Generate validation report
+        run: |
+          echo "🎯 Validation Summary"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "✅ Mod structure validation: PASSED"
+          echo "✅ info.json validation: PASSED"
+          echo "✅ Lua syntax and linting: PASSED"
+          echo "✅ Locale structure check: COMPLETED"
+          echo "✅ Common issues check: COMPLETED"
+          echo "✅ Changelog validation: COMPLETED"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🚀 All validation checks completed successfully!"

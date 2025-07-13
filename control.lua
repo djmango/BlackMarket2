@@ -1301,13 +1301,6 @@ local function compute_item_cost(item_name, loops, recipes_used)
 	end
 	recipes_used[#recipes_used + 1] = recipe_name
 
-	-- Check if recipe contains drone ingredients
-	for _, ingredient in pairs(recipe.ingredients) do
-		if string.match(ingredient.name:lower(), "drone") then
-			return item_cost_unknown(item_name, "recipe contains drone ingredients")
-		end
-	end
-
 	-- iterate through ingredients and make sure they have a set cost
 	for _, ingredient in pairs(recipe.ingredients) do
 		if storage.prices[ingredient.name] ~= nil then                                                             -- do we know the price already?

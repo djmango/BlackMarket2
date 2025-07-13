@@ -6,6 +6,9 @@ luac.out
 *.zip
 *.tar.gz
 
+# luarocks installation directory
+.luarocks/
+
 # Object files
 *.o
 *.os

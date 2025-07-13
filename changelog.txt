@@ -13,6 +13,7 @@ Date: 2025-07-13
     -  Fix LuaEquipmentGrid name access crash in modular armor
     -  Fixed sprite rectangle size mismatch errors for icon definitions
     -  Enhanced mod stability and compatibility with other mods
+    -  Fix inflated costs since problematic items now have reasonable prices
 ---------------------------------------------------------------------------------------------------
 Version: 2.2.12
 Date: 2024-11-09

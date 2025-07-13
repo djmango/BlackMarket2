@@ -1467,19 +1467,32 @@ local function update_objects_prices()
 
 	-- if only_researched_items is on then remove all that arent researched
 	if only_items_researched then
+		debug_print("Only researched items is enabled - filtering prices")
 		for name, object in pairs(storage.prices) do
-			recipe = storage.item_recipes[name] or nil
+			local recipe = storage.item_recipes[name] or nil
 			if recipe ~= nil and recipe.recipe ~= nil then
-				local recipe_enabled = false
-				for _, force in pairs(game.forces) do
-					if force.recipes[recipe.recipe] and force.recipes[recipe.recipe].enabled then
-						recipe_enabled = true
-						break
+				-- Check if this recipe requires technology research
+				local tech_name = storage.recipes_tech[recipe.recipe]
+				if tech_name then
+					-- This recipe requires technology research, check if it's researched
+					local tech_researched = false
+					for _, force in pairs(game.forces) do
+						if force.technologies[tech_name] and force.technologies[tech_name].researched then
+							tech_researched = true
+							break
+						end
 					end
+					if not tech_researched then
+						debug_print("Removing " .. name .. " - requires tech " .. tech_name .. " which is not researched")
+						storage.prices[name] = nil
+					end
+				else
+					-- This recipe doesn't require technology research, keep it
+					debug_print("Keeping " .. name .. " - no technology required")
 				end
-				if not recipe_enabled then
-					storage.prices[name] = nil
-				end
+			else
+				-- No recipe found, this is likely a raw resource, keep it
+				debug_print("Keeping " .. name .. " - no recipe (raw resource)")
 			end
 		end
 	end

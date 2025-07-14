@@ -490,8 +490,6 @@ local function build_menu_trader(player, player_mem, open_or_close)
 		local gui1, gui2, gui3
 		gui1 = gui_parent.add({ type = "frame", name = "frm_blkmkt_trader", style = "frame_blkmkt_style" })
 		player_mem.frm_blkmkt_trader = gui1
-		-- Bring the window to front so it appears above inventory
-		gui1.bring_to_front()
 		gui1 = gui1.add({
 			type = "flow",
 			name = "flw_blkmkt_trader",

@@ -218,7 +218,6 @@ local function build_menu_gen(player, player_mem, open_or_close)
 			"frame_blkmkt_style"
 		})
 		-- Bring the window to front so it appears above inventory
-		frame_window.bring_to_front()
 		gui1 = frame_window.add({
 			type = "flow",
 			name = "flw_blkmkt_gen",
@@ -491,7 +490,6 @@ local function build_menu_trader(player, player_mem, open_or_close)
 		gui1 = gui_parent.add({ type = "frame", name = "frm_blkmkt_trader", style = "frame_blkmkt_style" })
 		player_mem.frm_blkmkt_trader = gui1
 		-- Bring the window to front so it appears above inventory
-		gui1.bring_to_front()
 		gui1 = gui1.add({
 			type = "flow",
 			name = "flw_blkmkt_trader",
@@ -937,7 +935,7 @@ local function build_menu_objects(player, open_or_close, ask_sel)
 			"frame_blkmkt_style"
 		})
 		-- Bring the window to front so it appears above inventory
-		frame_window.bring_to_front()
+		-- frame_window.bring_to_front()
 		-- main_window = main_window.add({type = "empty-widget", ignored_by_interaction="true", name = "main_window_drag_handle", style = "flib_titlebar_drag_handle"})
 		main_window = frame_window.add({
 			type = "flow",

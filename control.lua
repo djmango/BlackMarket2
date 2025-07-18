@@ -55,6 +55,10 @@ local trader_signals =
 	auto_all = { type = "virtual", name = "signal-market-auto-all" },
 	auto_sell = { type = "virtual", name = "signal-market-auto-sell" },
 	auto_buy = { type = "virtual", name = "signal-market-auto-buy" },
+	price = { type = "virtual", name = "signal-market-price" },
+	last_trade = { type = "virtual", name = "signal-market-last-trade" },
+	min_price = { type = "virtual", name = "signal-market-min-price" },
+	max_price = { type = "virtual", name = "signal-market-max-price" },
 }
 
 --------------------------------------------------------------------------------------
@@ -2135,10 +2139,81 @@ local function listen_trader(trader)
 	else
 		listen_signal(trader_signals.auto_buy)
 	end
+	
+	-- Listen for price threshold signals
+	local min_price_val = network.get_signal(trader_signals.min_price)
+	if min_price_val ~= 0 then
+		trader.min_price = min_price_val
+	end
+	
+	local max_price_val = network.get_signal(trader_signals.max_price)
+	if max_price_val ~= 0 then
+		trader.max_price = max_price_val
+	end
 
 	if trader.editer and changed then update_menu_trader(trader.editer, nil, false) end
 
 	return (true)
+end
+
+--------------------------------------------------------------------------------------
+local function output_trader_info(trader)
+	local ent = trader.entity
+	if ent == nil or not ent.valid then return false end
+	
+	local control_behavior = ent.get_control_behavior()
+	if control_behavior == nil then return false end
+	
+	local signals = {}
+	local signal_count = 0
+	
+	-- Output current price of the traded item
+	if trader.item_name and storage.prices then
+		local price_data = storage.prices[trader.item_name]
+		if price_data then
+			signal_count = signal_count + 1
+			signals[signal_count] = {
+				index = signal_count,
+				signal = trader_signals.price,
+				count = math.floor(price_data.current or 0)
+			}
+		end
+	end
+	
+	-- Output time since last trade (in minutes)
+	if trader.hour_period then
+		local hours_since_trade = storage.hour - trader.hour_period
+		signal_count = signal_count + 1
+		signals[signal_count] = {
+			index = signal_count,
+			signal = trader_signals.last_trade,
+			count = hours_since_trade * 60 -- Convert to minutes
+		}
+	end
+	
+	-- Set the circuit network parameters
+	if signal_count > 0 then
+		control_behavior.parameters = signals
+	else
+		control_behavior.parameters = {}
+	end
+	
+	return true
+end
+
+--------------------------------------------------------------------------------------
+local function output_traders_info(force_mem)
+	if storage.prices_computed then return nil end
+	
+	for i = 1, #force_mem.traders_buy do
+		local trader = force_mem.traders_buy[i]
+		output_trader_info(trader)
+	end
+	
+	for i = 1, #force_mem.traders_sell do
+		local trader = force_mem.traders_sell[i]
+		output_trader_info(trader)
+	end
 end
 
 --------------------------------------------------------------------------------------
@@ -2933,6 +3008,7 @@ local function on_tick(event)
 		for name, force in pairs(game.forces) do
 			local force_mem = storage.force_mem[name]
 			listen_traders(force_mem)
+			output_traders_info(force_mem)
 		end
 
 		-- EVERY HOUR :
@@ -2953,14 +3029,25 @@ local function on_tick(event)
 					if storage.hour % trader.period == 0 then
 						trader.hour_period = storage.hour
 						if trader.auto and not force_mem.pause then
-							-- if not(trader.daylight and trader.type == trader_type.energy and trader.entity.surface.darkness > 0.5) then
-							local money1 = sell_trader(trader, force_mem)
-							if money1 == nil then
-								table.remove(force_mem.traders_sell, i)
-							else
-								money = money + money1
+							-- Check price thresholds before selling
+							local should_trade = true
+							if trader.item_name and storage.prices and trader.min_price then
+								local price_data = storage.prices[trader.item_name]
+								if price_data and price_data.current < trader.min_price then
+									should_trade = false
+								end
 							end
-							-- end
+							
+							if should_trade then
+								-- if not(trader.daylight and trader.type == trader_type.energy and trader.entity.surface.darkness > 0.5) then
+								local money1 = sell_trader(trader, force_mem)
+								if money1 == nil then
+									table.remove(force_mem.traders_sell, i)
+								else
+									money = money + money1
+								end
+								-- end
+							end
 						end
 					end
 				end
@@ -2983,11 +3070,22 @@ local function on_tick(event)
 					if storage.hour % trader.period == 0 then
 						trader.hour_period = storage.hour
 						if trader.auto and not force_mem.pause then
-							local money1 = buy_trader(trader, force_mem)
-							if money1 == nil then
-								table.remove(force_mem.traders_buy, i)
-							else
-								money = money + money1
+							-- Check price thresholds before buying
+							local should_trade = true
+							if trader.item_name and storage.prices and trader.max_price then
+								local price_data = storage.prices[trader.item_name]
+								if price_data and price_data.current > trader.max_price then
+									should_trade = false
+								end
+							end
+							
+							if should_trade then
+								local money1 = buy_trader(trader, force_mem)
+								if money1 == nil then
+									table.remove(force_mem.traders_buy, i)
+								else
+									money = money + money1
+								end
 							end
 						end
 					end

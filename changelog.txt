@@ -8,7 +8,6 @@ Date: 2025-07-13
     -  Excluded Transport Drone recipes from cost calculation to prevent pricing issues
     -  Fixed "Only enable items researched" feature for multiplayer compatibility
     -  Enhanced validation workflow with improved linting and error checking
-  Bugfixes:
     -  Fixed crash when opening equipment grids (modular armor) - LuaEquipmentGrid name access error
     -  Added comprehensive GitHub Actions validation for mod quality assurance
     -  Improved price update logic and fixed potential nil references

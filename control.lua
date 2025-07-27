@@ -2592,12 +2592,17 @@ local function on_creation(event)
 	end
 
 	if sell_or_buy ~= nil then
+		-- Fix for neutral chest bug (issue #22): ensure trader entities are bound to player's force
+		if event.player_index then
+			local player = game.get_player(event.player_index)
+			if player and player.valid then
+				ent.force = player.force
+			end
+		end
+		
 		local suffix = string.sub(ent_name, 16, 19)
 		local level = suffix_to_level(suffix)
 		local force_mem = storage.force_mem[ent.force.name]
-		-- if ent.force.name = 'neutral' then force_mem = storage.force_mem['player'] end
-		-- this is how you would fix the neutral chest bug, see issue 22, however i cant find
-		-- that setting to test it so im not exactly sure whats up
 		local trader = { entity = ent, sell_or_buy = sell_or_buy, type = type }
 		init_trader(trader, level)
 		trader.n_period = force_mem.n_period

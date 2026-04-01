@@ -2800,8 +2800,8 @@ local function on_player_setup_blueprint(event)
 
 			-- Match by position (approximately)
 			for _, found_entity in pairs(found_entities) do
-				if math.abs(found_entity.position.x - (area.left_top.x + entity.position.x)) < 0.5 and
-					math.abs(found_entity.position.y - (area.left_top.y + entity.position.y)) < 0.5 then
+				if math.abs(found_entity.position.x - entity.position.x) < 0.5 and
+					math.abs(found_entity.position.y - entity.position.y) < 0.5 then
 					world_entity = found_entity
 					break
 				end

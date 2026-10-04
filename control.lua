@@ -10,8 +10,13 @@ mod_gui = require("mod-gui")
 
 configure_settings()
 
-local table = require('__flib__.table')
--- local gui = require('__flib__.gui') -- Currently unused
+-- flib 0.17 no longer re-exports the Lua standard library from its table module,
+-- and it removed `for_each`. Use the standard library and a local helper instead.
+local function for_each(tbl, fn)
+	for key, value in pairs(tbl) do
+		fn(value, key)
+	end
+end
 
 local trader_type = { item = 1, fluid = 2, energy = 3, "item", "fluid", "energy" }
 local energy_name = "market-energy" -- name of fake energy item
@@ -1246,7 +1251,7 @@ local function compute_recipe_purity(recipe_name, item_name)
 	local other_amount = 0   -- the other stuff that the recipe produces
 	local ingredient_amount = 0 -- the stuff we are actually trying to solve for
 
-	table.for_each(recipe.products, function(product)
+	for_each(recipe.products, function(product)
 		-- here we categorize each of the recipes products into product or other
 		if product.name == item_name then
 			if product.amount ~= nil then
@@ -1407,13 +1412,13 @@ local function update_objects_prices()
 
 					-- or recipes with catalysts
 					local hasCatalyst = false
-					table.for_each(recipe.products, function(recipe_product)
+					for_each(recipe.products, function(recipe_product)
 						-- if the recipe just straight up tells us
 						if recipe_product.catalyst_amount ~= nil and recipe_product.catalyst_amount > 0 then
 							hasCatalyst = true
 							-- otherwise check for name matches
 						else
-							table.for_each(recipe.ingredients,
+							for_each(recipe.ingredients,
 								function(ingr) if ingr.name == recipe_product.name then hasCatalyst = true end end)
 						end
 					end)
@@ -1499,7 +1504,7 @@ end
 
 local function multiply_prices()
 	if not (settings.global["BM2-price_multiplyer"] == nil or settings.global["BM2-price_multiplyer"].value == 1) then -- no point of multiplying prices if its just by 1 or not configured at all
-		table.for_each(storage.prices,
+		for_each(storage.prices,
 			function(price) price.current = price.current * settings.global["BM2-price_multiplyer"].value end)
 	end
 end
@@ -2112,9 +2117,9 @@ local function listen_trader(trader)
 	if ent == nil or not ent.valid then return (false) end
 	local changed = false
 
-	local network = ent.get_circuit_network(defines.wire_type.red)
+	local network = ent.get_circuit_network(defines.wire_connector_id.circuit_red)
 	if network == nil then
-		network = ent.get_circuit_network(defines.wire_type.green)
+		network = ent.get_circuit_network(defines.wire_connector_id.circuit_green)
 	end
 
 	if network == nil then return (false) end

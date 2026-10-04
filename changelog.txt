@@ -1,4 +1,12 @@
 ---------------------------------------------------------------------------------------------------
+Version: 2.2.20
+Date: 2026-10-04
+  Changes:
+    -  Updated to Factorio 2.1
+    -  Removed the flib dependency (it was no longer used)
+    -  Replaced the flib table helpers with the Lua standard library, so the mod loads without flib
+    -  Fixed circuit wires: the red wire now works, and the green wire still works
+---------------------------------------------------------------------------------------------------
 Version: 2.2.19
 Date: 2026-04-01
   Changes:

@@ -74,16 +74,16 @@ function debug_active(msg, level)
 	end
 
 	if s == "RAZ" or debug_do_raz == true then
-		game.remove_path(debug_file)
+		helpers.remove_path(debug_file)
 		debug_do_raz = false
 	elseif s == "CLEAR" then
 		for _, player in pairs(game.players) do
-			if player.connected then player.clear_console() end
+			if player.connected then pcall(function() player.clear_console() end) end
 		end
 	end
 
 	s = debug_mod_name .. "(" .. game.tick .. "): " .. s
-	game.write_file( debug_file, s .. "\n", true )
+	helpers.write_file( debug_file, s .. "\n", true )
 	
 	for _, player in pairs(game.players) do
 		if player.connected then player.print(s) end

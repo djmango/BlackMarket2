@@ -1838,16 +1838,12 @@ local function evaluate_trader(trader)
 		end
 	elseif trader.type == trader_type.fluid then
 		local tank = trader.entity
-		if tank.fluidbox then
-			local box = tank.fluidbox[1]
-			if box ~= nil then
-				local name = box.name
-				local count = box.amount
-
-				local price = storage.prices[name]
-				if price ~= nil then
-					money = count * price.current
-				end
+		-- 2.1 removed LuaEntity::fluidbox, so read the fluid contents directly
+		local contents = tank.get_fluid_contents()
+		for name, count in pairs(contents) do
+			local price = storage.prices[name]
+			if price ~= nil then
+				money = money + count * price.current
 			end
 		end
 	elseif trader.type == trader_type.energy then
@@ -1949,7 +1945,7 @@ local function sell_trader(trader, force_mem, tax_rate)
 				tax1 = money1 * tax_rate / 100
 				money = money + money1
 				taxes = taxes + tax1
-				tank.remove_fluid({ name = name, amount = amount })
+				tank.extract_fluid({ name = name, amount = amount })
 
 				update_transaction(force_mem, "fluid", name, price, -amount)
 				if amount ~= 0 then
@@ -2060,7 +2056,7 @@ local function buy_trader(trader, force_mem, tax_rate)
 					amount_box = amount_box + fluid_amount
 				else
 					-- clear other fluids if they are less than 0.1
-					tank.remove_fluid({ name = fluid_name, amount = fluid_amount })
+					tank.extract_fluid({ name = fluid_name, amount = fluid_amount })
 				end
 			end
 

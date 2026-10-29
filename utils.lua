@@ -215,10 +215,43 @@ function concat_lists(list1, list2)
 end
 
 --------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------
+-- Items that are tools, not goods. A blueprint has no recipe and no material value, so it
+-- picks up the unknown price and can be sold for credits (a filled blueprint could be
+-- emptied and sold over and over). Never price them and never trade them.
+local untradeable_item_types = {
+	["blueprint"] = true,
+	["blueprint-book"] = true,
+	["deconstruction-item"] = true,
+	["upgrade-item"] = true,
+	["selection-tool"] = true,
+	["copy-paste-tool"] = true,
+	["cut-paste-tool"] = true,
+	["spidertron-remote"] = true,
+	["artillery-targeting-remote"] = true,
+}
+
+function is_untradeable( item_name )
+	local proto = prototypes.item[item_name]
+	return proto ~= nil and untradeable_item_types[proto.type] == true
+end
+
+function remove_untradeable_prices()
+	for name in pairs(storage.prices) do
+		if is_untradeable(name) then storage.prices[name] = nil end
+	end
+end
+
+--------------------------------------------------------------------------------------
 function dupli_proto( type, name1, name2 )
 	if data.raw[type][name1] then 
 		local proto = table.deepcopy(data.raw[type][name1])
 		proto.name = name2
+		-- A copy must not inherit next_upgrade. The upgrade target has to share the collision
+		-- mask of the prototype that points at it, so a modpack that repoints the vanilla
+		-- prototype at its own entity makes every copy fail to load (Space Exploration:
+		-- "next_upgrade target (storage-tank2) must have the same collision mask").
+		proto.next_upgrade = nil
 		if proto.minable and proto.minable.result then proto.minable.result = name2	end
 		if proto.place_result then proto.place_result = name2 end
 		if proto.take_result then proto.take_result = name2	end

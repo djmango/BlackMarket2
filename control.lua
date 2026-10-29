@@ -1243,6 +1243,8 @@ local function update_objects_prices_start()
 	storage.specials = specials
 	storage.new_resources = new_resources
 	storage.free_products = free_products
+
+	remove_untradeable_prices()
 end
 
 local function compute_recipe_purity(recipe_name, item_name)
@@ -1301,7 +1303,19 @@ local function compute_item_cost(item_name, loops, recipes_used)
 
 	-- grab the item's recipe
 	local recipe_name = storage.item_recipes[item_name].recipe
+	-- An entry can exist with no recipe attached (an item seen only as an ingredient, or a
+	-- recipe another mod removed). Indexing the recipe table with nil aborted the whole price
+	-- pass with "bad argument #2 of 3 to '__index' (string expected, got nil)".
+	if recipe_name == nil then
+		return item_cost_unknown(item_name, "no recipe name")
+	end
 	local recipe = game.forces.player.recipes[recipe_name]
+	if recipe == nil then
+		return item_cost_unknown(item_name, "recipe not on the player force")
+	end
+	if recipe.ingredients == nil then
+		return item_cost_unknown(item_name, "recipe has no ingredients")
+	end
 
 	for _, recipe_used in pairs(recipes_used) do
 		if recipe_used == recipe_name then
@@ -1385,6 +1399,13 @@ local function update_objects_prices()
 	end
 
 	for _, recipe in pairs(all_recipes) do
+		-- Transport Drones adds "request-" recipes that are not production recipes. If one is
+		-- let into the purity comparison it beats the real recipe for its product and drags
+		-- that item's price to the cost of the request token.
+		if string.sub(recipe.name, 1, 8) == "request-" then
+			goto next_recipe
+		end
+
 		for _, product in pairs(recipe.products) do
 			-- Skip products without a valid name
 			if product.name == nil then
@@ -1435,6 +1456,7 @@ local function update_objects_prices()
 			storage.item_recipes[product.name] = item_recipe
 			::continue::
 		end
+		::next_recipe::
 	end
 
 	for _, item in pairs(storage.item_recipes) do
@@ -1463,6 +1485,8 @@ local function update_objects_prices()
 
 		price.current = price.overall * price.dynamic
 	end
+
+	remove_untradeable_prices()
 
 	storage.old_prices = nil
 	storage.prices_computed = false
@@ -1820,7 +1844,7 @@ local function evaluate_trader(trader)
 	if trader.type == trader_type.item then
 		local inv = trader.entity.get_inventory(defines.inventory.chest)
 		for _, item in ipairs(inv.get_contents()) do
-			local price = storage.prices[item.name]
+			local price = is_untradeable(item.name) and nil or storage.prices[item.name]
 			if price ~= nil then
 				local quality = item.quality
 				local quality_multiplier = 1
@@ -1902,7 +1926,7 @@ local function sell_trader(trader, force_mem, tax_rate)
 	if trader.type == trader_type.item then
 		local inv = trader.entity.get_inventory(defines.inventory.chest)
 		for _, item in ipairs(inv.get_contents()) do
-			local price = storage.prices[item.name]
+			local price = is_untradeable(item.name) and nil or storage.prices[item.name]
 			if price ~= nil then
 				local quality = item.quality
 				local quality_multiplier = 1
@@ -2002,7 +2026,7 @@ local function buy_trader(trader, force_mem, tax_rate)
 		local inv = trader.entity.get_inventory(defines.inventory.chest)
 
 		for i, order in ipairs(trader.orders) do
-			local price = storage.prices[order.name]
+			local price = is_untradeable(order.name) and nil or storage.prices[order.name]
 			if price ~= nil and order.count > 0 then
 				local quality = order.quality
 				local quality_multiplier = 1

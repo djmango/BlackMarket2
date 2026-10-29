@@ -26,6 +26,7 @@ globals = {
     "surface_area", "iif", "add_list", "del_list", "in_list",
     "size_list", "concat_lists", "dupli_proto", "debug_guis",
     "extract_monolith", "configure_settings",
+    "is_untradeable", "remove_untradeable_prices",
 
     -- Color definitions
     "colors", "anticolors", "lightcolors",
@@ -50,7 +51,7 @@ globals = {
 
 -- Read-only globals
 read_globals = {
-    "mod_gui", "_G", "_ENV", "require"
+    "_G", "_ENV", "require"
 }
 
 -- Ignore specific warnings that are common in Factorio mods

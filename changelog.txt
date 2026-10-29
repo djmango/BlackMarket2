@@ -1,4 +1,10 @@
 ---------------------------------------------------------------------------------------------------
+Version: 2.2.22
+Date: 2026-10-28
+  Bugfixes:
+    - The credits on the top bar now refresh after an automatic sale or purchase, so the wallet and the market window no longer disagree
+    - The buy menu no longer crashes when the remembered item group is gone after a mod change or a price rescan
+---------------------------------------------------------------------------------------------------
 Version: 2.2.21
 Date: 2026-10-28
   Bugfixes:

@@ -1003,7 +1003,10 @@ local function build_menu_objects(player, open_or_close, ask_sel)
 			style =
 			"table_blkmkt_style"
 		})
-		local group = storage.groups[player_mem.group_sel_name].group
+		-- the remembered group can be missing after a mod change or a rescan. Indexing the
+		-- missing entry crashed the buy menu with "attempt to index field '?' (a nil value)"
+		-- (issue #100).
+		local group = (storage.groups[player_mem.group_sel_name] or {}).group
 
 		n = 0
 
@@ -2989,9 +2992,11 @@ local function on_tick(event)
 						end
 					end
 				end
-				-- if money ~= 0 then
-				-- update_bars(force)
-				-- end
+				-- refresh the credits shown on the top bar button and its tooltip, otherwise the
+				-- wallet keeps the number from the last manual open (issue #104)
+				if money ~= 0 then
+					update_bars(force)
+				end
 			end
 		end
 	elseif storage.tick == 58 then
@@ -3017,9 +3022,11 @@ local function on_tick(event)
 						end
 					end
 				end
-				-- if money ~= 0 then
-				-- update_bars(force)
-				-- end
+				-- refresh the credits shown on the top bar button and its tooltip, otherwise the
+				-- wallet keeps the number from the last manual open (issue #104)
+				if money ~= 0 then
+					update_bars(force)
+				end
 			end
 		end
 	elseif storage.tick == 78 then

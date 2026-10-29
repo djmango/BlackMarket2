@@ -1,4 +1,9 @@
 ---------------------------------------------------------------------------------------------------
+Version: 2.2.23
+Date: 2026-10-28
+  Bugfixes:
+    - Blueprint orders: the setup handler matches each blueprint entity against the force trader list and falls back to an offset from the selected area, so a blueprint no longer saves an empty order list (issue #98)
+---------------------------------------------------------------------------------------------------
 Version: 2.2.22
 Date: 2026-10-28
   Bugfixes:

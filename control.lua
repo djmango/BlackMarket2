@@ -2807,57 +2807,68 @@ local function on_player_setup_blueprint(event)
 		return
 	end
 
-	-- Go through each entity in the blueprint
+	local force_mem = storage.force_mem[player.force.name]
+	if force_mem == nil then
+		return
+	end
+
+	-- Match against the force's own trader list instead of scanning the surface. The old
+	-- version scanned event.area, so an entity whose position did not line up with the
+	-- dragged area silently lost its orders (reports on the portal and issue #98).
+	local function find_trader(list, entity, dx, dy)
+		for _, trader in pairs(list) do
+			local ent = trader.entity
+			if ent and ent.valid and ent.name == entity.name then
+				if math.abs(ent.position.x - (entity.position.x + dx)) < 0.5 and
+					math.abs(ent.position.y - (entity.position.y + dy)) < 0.5 then
+					return trader
+				end
+			end
+		end
+		return nil
+	end
+
+	local function is_sell_prefix(prefix)
+		return prefix == "trader-chst-sel" or prefix == "trader-tank-sel" or prefix == "trader-accu-sel"
+	end
+
+	local function is_trader_prefix(prefix)
+		return is_sell_prefix(prefix) or prefix == "trader-chst-buy" or prefix == "trader-tank-buy" or prefix == "trader-accu-buy"
+	end
+
+	-- A setup blueprint normally reports absolute positions, but a blueprint that came back
+	-- from another source can report them relative to its own origin. Try absolute first,
+	-- then offset by the selected area so either shape is found.
+	local offsets = { { 0, 0 } }
+	if event.area then
+		offsets[2] = { event.area.left_top.x, event.area.left_top.y }
+	end
+
+	local tagged = false
 	for _, entity in pairs(entities) do
 		local prefix = string.sub(entity.name, 1, 15)
-
-		-- Check if this is a trading entity
-		if prefix == "trader-chst-sel" or prefix == "trader-chst-buy" or
-			prefix == "trader-tank-sel" or prefix == "trader-tank-buy" or
-			prefix == "trader-accu-sel" or prefix == "trader-accu-buy" then
-			-- Find the corresponding trader in the world
-			local world_entity = nil
-			local surface = player.surface
-			local area = event.area
-
-			-- Find entities in the selected area
-			local found_entities = surface.find_entities_filtered {
-				area = area,
-				name = entity.name
-			}
-
-			-- Match by position (approximately)
-			for _, found_entity in pairs(found_entities) do
-				if math.abs(found_entity.position.x - entity.position.x) < 0.5 and
-					math.abs(found_entity.position.y - entity.position.y) < 0.5 then
-					world_entity = found_entity
+		if is_trader_prefix(prefix) then
+			local list = is_sell_prefix(prefix) and force_mem.traders_sell or force_mem.traders_buy
+			local trader = nil
+			for _, offset in pairs(offsets) do
+				trader = find_trader(list, entity, offset[1], offset[2])
+				if trader then
 					break
 				end
 			end
 
-			-- If we found the world entity, get its trader data
-			if world_entity then
-				local force_mem = storage.force_mem[world_entity.force.name]
-				local trader = nil
-
-				if prefix == "trader-chst-sel" or prefix == "trader-tank-sel" or prefix == "trader-accu-sel" then
-					trader = find_trader_sell(force_mem, world_entity)
-				elseif prefix == "trader-chst-buy" or prefix == "trader-tank-buy" or prefix == "trader-accu-buy" then
-					trader = find_trader_buy(force_mem, world_entity)
-				end
-
-				-- If we found the trader, serialize its data
-				if trader then
-					local blueprint_data = serialize_trader_for_blueprint(trader)
-					entity.tags = entity.tags or {}
-					entity.tags.blackmarket_trader = blueprint_data
-				end
+			if trader then
+				entity.tags = entity.tags or {}
+				entity.tags.blackmarket_trader = serialize_trader_for_blueprint(trader)
+				tagged = true
 			end
 		end
 	end
 
 	-- Update the blueprint with the new entity data
-	blueprint.set_blueprint_entities(entities)
+	if tagged then
+		blueprint.set_blueprint_entities(entities)
+	end
 end
 
 

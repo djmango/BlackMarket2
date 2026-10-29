@@ -240,6 +240,11 @@ local function add_chests(level)
 			height = 34,
 			shift = {0.1875, 0}
 		}
+	
+	-- Add circuit network connectivity
+	chest_sell.circuit_wire_connection_point = circuit_connector_definitions["chest"].points
+	chest_sell.circuit_connector_sprites = circuit_connector_definitions["chest"].sprites
+	chest_sell.circuit_wire_max_distance = default_circuit_wire_max_distance
 
 	
 	data:extend(
@@ -281,6 +286,11 @@ local function add_chests(level)
 			height = 34,
 			shift = {0.1875, 0}
 		}
+	
+	-- Add circuit network connectivity
+	chest_buy.circuit_wire_connection_point = circuit_connector_definitions["chest"].points
+	chest_buy.circuit_connector_sprites = circuit_connector_definitions["chest"].sprites
+	chest_buy.circuit_wire_max_distance = default_circuit_wire_max_distance
 
 	data:extend(
 		{
@@ -354,6 +364,11 @@ local function add_tanks(level)
 	tank_sell.pictures.picture.sheets[1].filename = "__BlackMarket2__/graphics/trading-tank-sell.png"
 	tank_sell.pictures.picture.sheets[1].height = 216
 	tank_sell.fluid_box.volume = tank_max
+	
+	-- Add circuit network connectivity
+	tank_sell.circuit_wire_connection_point = circuit_connector_definitions["storage_tank"].points
+	tank_sell.circuit_connector_sprites = circuit_connector_definitions["storage_tank"].sprites
+	tank_sell.circuit_wire_max_distance = default_circuit_wire_max_distance
 
 	data:extend(
 		{
@@ -389,6 +404,11 @@ local function add_tanks(level)
 	tank_buy.pictures.picture.sheets[1].filename = "__BlackMarket2__/graphics/trading-tank-buy.png"
 	tank_buy.pictures.picture.sheets[1].height = 216
 	tank_buy.fluid_box.volume = tank_max
+	
+	-- Add circuit network connectivity
+	tank_buy.circuit_wire_connection_point = circuit_connector_definitions["storage_tank"].points
+	tank_buy.circuit_connector_sprites = circuit_connector_definitions["storage_tank"].sprites
+	tank_buy.circuit_wire_max_distance = default_circuit_wire_max_distance
 
 	data:extend(
 		{

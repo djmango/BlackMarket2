@@ -1,98 +1,107 @@
 ---------------------------------------------------------------------------------------------------
+Version: 2.2.21
+Date: 2026-10-28
+  Bugfixes:
+    - Fixed the mod failing to load beside a modpack that points the vanilla storage tank at its own upgrade target (Space Exploration): a copied prototype no longer inherits next_upgrade
+    - Blueprints, blueprint books, planners and remotes are no longer priced or tradable, so empty blueprints cannot be sold for credits
+    - Recipes named request-* are ignored when computing prices (Transport Drones)
+    - The price pass no longer aborts when an item has no recipe on the player force
+    - Fixed the changelog format so the mod list parses it
+---------------------------------------------------------------------------------------------------
 Version: 2.2.20
 Date: 2026-10-28
   Changes:
-    -  Updated to Factorio 2.1
-    -  Removed the flib dependency (it was no longer used)
-    -  Replaced the flib table helpers with the Lua standard library, so the mod loads without flib
-    -  Fixed circuit wires: the red wire now works, and the green wire still works
-    -  Fixed fluid trading: 2.1 removed LuaEntity.fluidbox and renamed remove_fluid, so the fluid content is read with get_fluid_contents and drained with extract_fluid
-    -  Fixed the debug log writer for 2.1: game.write_file moved to helpers.write_file
+    - Updated to Factorio 2.1
+    - Removed the flib dependency (it was no longer used)
+    - Replaced the flib table helpers with the Lua standard library, so the mod loads without flib
+    - Fixed circuit wires: the red wire now works, and the green wire still works
+    - Fixed fluid trading: 2.1 removed LuaEntity.fluidbox and renamed remove_fluid, so the fluid content is read with get_fluid_contents and drained with extract_fluid
+    - Fixed the debug log writer for 2.1: game.write_file moved to helpers.write_file
 ---------------------------------------------------------------------------------------------------
 Version: 2.2.19
 Date: 2026-04-01
   Changes:
-    -  Fixed multiplayer neutral chest bug
-    -  Fixed GUI scale setting localization missing translations
-    -  Fixed blueprint entity position logic bug (thanks Aristotlexby)
+    - Fixed multiplayer neutral chest bug
+    - Fixed GUI scale setting localization missing translations
+    - Fixed blueprint entity position logic bug (thanks Aristotlexby)
 ---------------------------------------------------------------------------------------------------
 Version: 2.2.18
 Date: 2025-07-15
   Changes:
-    -  Fixed bring to front crash for GUI windows
+    - Fixed bring to front crash for GUI windows
 ---------------------------------------------------------------------------------------------------
 Version: 2.2.17
 Date: 2025-07-13
   Changes:
-    -  Added blueprint support for saving and loading trading orders
-    -  Implemented configurable GUI scaling for improved readability
-    -  Added defensive null checks to prevent storage.prices access errors
-    -  Excluded Transport Drone recipes from cost calculation to prevent pricing issues
-    -  Fixed "Only enable items researched" feature for multiplayer compatibility
-    -  Enhanced validation workflow with improved linting and error checking
-    -  Fixed crash when opening equipment grids (modular armor) - LuaEquipmentGrid name access error
-    -  Added comprehensive GitHub Actions validation for mod quality assurance
-    -  Improved price update logic and fixed potential nil references
-    -  Fix LuaEquipmentGrid name access crash in modular armor
-    -  Fixed sprite rectangle size mismatch errors for icon definitions
-    -  Enhanced mod stability and compatibility with other mods
-    -  Fix inflated costs since problematic items now have reasonable prices
+    - Added blueprint support for saving and loading trading orders
+    - Implemented configurable GUI scaling for improved readability
+    - Added defensive null checks to prevent storage.prices access errors
+    - Excluded Transport Drone recipes from cost calculation to prevent pricing issues
+    - Fixed "Only enable items researched" feature for multiplayer compatibility
+    - Enhanced validation workflow with improved linting and error checking
+    - Fixed crash when opening equipment grids (modular armor) - LuaEquipmentGrid name access error
+    - Added comprehensive GitHub Actions validation for mod quality assurance
+    - Improved price update logic and fixed potential nil references
+    - Fix LuaEquipmentGrid name access crash in modular armor
+    - Fixed sprite rectangle size mismatch errors for icon definitions
+    - Enhanced mod stability and compatibility with other mods
+    - Fix inflated costs since problematic items now have reasonable prices
 ---------------------------------------------------------------------------------------------------
 Version: 2.2.12
 Date: 2024-11-09
   Changes:
-    -  Fixes a crash when Py's mods are installed
+    - Fixes a crash when Py's mods are installed
 ---------------------------------------------------------------------------------------------------
 Version: 2.2.11
 Date: 2024-11-08
   Changes:
-    -  Fixes a crash when Space Age DLC is not installed, or quality is not enabled
+    - Fixes a crash when Space Age DLC is not installed, or quality is not enabled
 ---------------------------------------------------------------------------------------------------
 Version: 2.2.10
 Date: 2024-11-06
   Changes:
-    -  Fixes the price multiplier for the Legendary quality level
-    -  Fixes a crash when viewing buy orders with quality levels that no longer exist
+    - Fixes the price multiplier for the Legendary quality level
+    - Fixes a crash when viewing buy orders with quality levels that no longer exist
 ---------------------------------------------------------------------------------------------------
 Version: 2.2.9
 Date: 2024-11-04
   Changes:
-    -  Fixes "expected LuaQualityPrototype or string" crash when buying items with quality
+    - Fixes "expected LuaQualityPrototype or string" crash when buying items with quality
 ---------------------------------------------------------------------------------------------------
 Version: 2.2.8
 Date: 2024-11-04
   Changes:
-    -  Fixes loading of saves from 2.2.6 or earlier
+    - Fixes loading of saves from 2.2.6 or earlier
 ---------------------------------------------------------------------------------------------------
 Version: 2.2.7
 Date: 2024-11-04
   Changes:
-    -  Adds support for modded quality levels
+    - Adds support for modded quality levels
 ---------------------------------------------------------------------------------------------------
 Version: 2.2.6
 Date: 2024-10-29
   Changes:
-    -  Fixes loading of old saves from before quality was added
+    - Fixes loading of old saves from before quality was added
 ---------------------------------------------------------------------------------------------------
 Version: 2.2.5
 Date: 2024-10-28
   Changes:
-    -  Adds the ability to set the quality of items when purchasing
+    - Adds the ability to set the quality of items when purchasing
 ---------------------------------------------------------------------------------------------------
 Version: 2.2.0
 Date: 2024-10-24
   Changes:
-    -  Adds compatibility with Factorio 2.0
+    - Adds compatibility with Factorio 2.0
 ---------------------------------------------------------------------------------------------------
 Version: 2.1.0
-Date: 2021-9-15
+Date: 2021-09-15
   Changes:
-    -  Huge thanks to xsirh925 for:
-    -  Mod item pricing fix
-    -  Flib 0.8 compatibility
+    - Huge thanks to xsirh925 for:
+    - Mod item pricing fix
+    - Flib 0.8 compatibility
 ---------------------------------------------------------------------------------------------------
 Version: 2.0.6
-Date: 2021-8-13
+Date: 2021-08-13
   Changes:
     - Downgraded flib dependency due to init bug
 ---------------------------------------------------------------------------------------------------

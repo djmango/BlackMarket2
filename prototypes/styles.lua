@@ -24,15 +24,20 @@ data:extend(
 			type = "sprite",
 			name = "sprite_main_blkmkt",
 			filename = "__BlackMarket2__/graphics/but-main.png",
-			width = math.floor(30 * gui_scale),
-			height = math.floor(30 * gui_scale),
+			-- width and height are the rectangle read out of the PNG (30 x 30 pixels), never the
+			-- size drawn on screen: a rectangle larger than the file crashes the client at load.
+			-- The GUI scale setting goes in `scale`, which is what makes the icon bigger.
+			width = 30,
+			height = 30,
+			scale = gui_scale,
 		},
 		{
 			type = "sprite",
 			name = "sprite_energy_blkmkt",
 			filename = "__BlackMarket2__/graphics/energy.png",
-			width = math.floor(32 * gui_scale),
-			height = math.floor(32 * gui_scale),
+			width = 32,
+			height = 32,
+			scale = gui_scale,
 		},
 	}
 )		

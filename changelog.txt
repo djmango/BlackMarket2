@@ -1,4 +1,9 @@
 ---------------------------------------------------------------------------------------------------
+Version: 2.2.24
+Date: 2026-10-31
+  Bugfixes:
+    - Fixed a crash when the game loads: the top bar button icon and the energy icon told the game to read a rectangle bigger than the image file (45 x 45 pixels from a 30 x 30 file, 48 x 48 from a 32 x 32 file at the default GUI scale), and Factorio stops with "The given sprite rectangle is outside the actual sprite size". The GUI scale setting now sets the sprite scale, so the icons are the same size as before at every GUI scale from 0.5 to 3.0 (issue: 2.2.23 Sprite Crash)
+---------------------------------------------------------------------------------------------------
 Version: 2.2.23
 Date: 2026-10-28
   Bugfixes:

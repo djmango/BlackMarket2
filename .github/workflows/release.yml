@@ -48,6 +48,11 @@ jobs:
                   --exclude='*.md' \
                   --exclude='.luacheckrc' \
                   --exclude='symlink.sh' \
+                  --exclude='*.sh' \
+                  --exclude='*.py' \
+                  --exclude='*.bat' \
+                  --exclude='*.ps1' \
+                  --exclude='*.exe' \
                   --exclude='.vscode' \
                   --exclude='*.zip' \
                   . "temp/$PACKAGE_NAME/"

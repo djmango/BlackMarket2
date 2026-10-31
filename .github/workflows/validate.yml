@@ -176,6 +176,22 @@ jobs:
             echo "⚠️ No changelog.txt found"
           fi
 
+      - name: Download headless Factorio
+        run: |
+          mkdir -p "$RUNNER_TEMP/fx"
+          curl -fL --retry 3 -o "$RUNNER_TEMP/fx/factorio.tar.xz" https://factorio.com/get-download/stable/headless/linux64
+          tar -xf "$RUNNER_TEMP/fx/factorio.tar.xz" -C "$RUNNER_TEMP/fx"
+          echo "FACTORIO_DIR=$RUNNER_TEMP/fx/factorio" >> "$GITHUB_ENV"
+
+      - name: Check sprite rectangles against their PNGs
+        run: |
+          # The client crashes on a sprite rectangle larger than its PNG. The headless engine loads no
+          # graphics, so this reads the prototypes it computed. Run at every end of the GUI scale setting.
+          for scale in "" 0.5 1.0 3.0; do
+            echo "gui_scale ${scale:-default}"
+            .github/scripts/sprite-rect-check.sh . $scale
+          done
+
       - name: Generate validation report
         run: |
           echo "🎯 Validation Summary"
@@ -184,6 +200,7 @@ jobs:
           echo "✅ info.json validation: PASSED"
           echo "✅ Lua syntax and linting: PASSED"
           echo "✅ Locale structure check: COMPLETED"
+          echo "✅ Sprite rectangles inside their PNGs: PASSED"
           echo "✅ Common issues check: COMPLETED"
           echo "✅ Changelog validation: COMPLETED"
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

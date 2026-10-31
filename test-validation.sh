@@ -107,6 +107,22 @@ else
     echo "⚠️  No changelog.txt found"
 fi
 
+# Test 7: sprite rectangles against the PNGs they point at (the client crashes on a rectangle larger than its file)
+echo ""
+echo "7. Checking sprite rectangles against their PNG files..."
+if [ -n "${FACTORIO_DIR:-}" ]; then
+    for scale in "" 0.5 1.0 3.0; do
+        if ! .github/scripts/sprite-rect-check.sh . $scale > /tmp/sprite-rect-check.out 2>&1; then
+            echo "FAILED at gui_scale ${scale:-default}:"
+            cat /tmp/sprite-rect-check.out
+            exit 1
+        fi
+    done
+    echo "✅ Every sprite rectangle is inside its PNG (default, 0.5, 1.0, 3.0)"
+else
+    echo "⚠️  NOT EXAMINED: set FACTORIO_DIR to an unpacked headless Factorio to run this check"
+fi
+
 echo ""
 echo "🎯 Local Validation Summary"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
